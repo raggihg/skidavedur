@@ -13,17 +13,20 @@
       <div class="links">
         <a href="#stodvar">Stöðvar</a>
         <a href="#spa">Spá</a>
+        <a href="#textaspa">Textaspá</a>
+        <a href="#vidvaranir">Viðvaranir</a>
         <a href="#snjoflod">Snjóflóð</a>
         <a href="#kort">Kort</a>
       </div>
     </nav>
     <section class="hero-inner">
-      <p class="eyebrow">Ísafjörður · Seljalandsdalur · Tungudalur · fjallaleiðir</p>
+      <p class="eyebrow">Ísafjörður · Seljalandsdalur · Tungudalur · norðanverðir Vestfirðir</p>
       <h1>Veðurmælaborð fyrir skíðasvæði Ísafjarðarbæjar</h1>
-      <p class="intro">Samantekt á mælingum frá Veðurstofu Íslands, staðbundinni spá næstu daga, Windy-kortum og flýtileiðum í snjóflóðamat.</p>
+      <p class="intro">Samantekt á mælingum frá Veðurstofu Íslands, vindátt með örvum/stöfum, Textaspá Vestfjarða, viðvörunum fyrir norðanverða Vestfirði, Windy-kortum og snjóflóðaupplýsingum.</p>
       <div class="hero-actions">
         <a class="button primary" href="https://gottvedur.is/vedur/athuganir/2641/" target="_blank" rel="noopener">Seljalandsdalur skíðaskáli</a>
         <a class="button" href="https://gottvedur.is/snjoflod/svaedi/NV/" target="_blank" rel="noopener">Snjóflóðaspá</a>
+        <a class="button" href="https://www.vedur.is/vidvaranir/svaedi/vestfirdir" target="_blank" rel="noopener">Viðvaranir Vestfirðir</a>
       </div>
     </section>
   </header>
@@ -48,7 +51,7 @@
       <div class="section-heading">
         <p class="eyebrow">Núverandi mælingar</p>
         <h2>Veðurstöðvar</h2>
-        <p>Reynir að sækja nýjustu klukkustundarmælingar úr nýja API Veðurstofunnar. Ef vafrinn nær ekki sambandi birtast beinir hlekkir í stöðvarnar.</p>
+        <p>Reynir að sækja nýjustu klukkustundarmælingar úr API Veðurstofunnar. Stöð 2640 er sleppt í bili; hér eru Þverfjall, skíðaskálinn í Seljalandsdal og Tungudalur. Vindátt birtist bæði sem ör, gráður og áttastafur.</p>
       </div>
       <div id="station-grid" class="grid cards"></div>
     </section>
@@ -69,6 +72,47 @@
       </div>
     </section>
 
+
+
+    <section id="textaspa" class="section split text-forecast-section">
+      <div>
+        <p class="eyebrow">Veðurfræðingur</p>
+        <h2>Textaspá fyrir Vestfirði</h2>
+        <p>Textaspáin frá Veðurstofunni á að vega þungt þegar sjálfvirkar staðaspár og kort eru ósamhljóða. Hér er hún sett inn sem opinbert iframe frá Veðurstofunni fyrir svæði 3: Vestfirðir.</p>
+        <div class="mini-links">
+          <a href="https://www.vedur.is/vedur/spar/stadaspar/vestfirdir/" target="_blank" rel="noopener">Opna Textaspá Vestfjarða</a>
+          <a href="https://www.vedur.is/vedur/spar/stadaspar/vestfirdir/djupid/" target="_blank" rel="noopener">Opna Djúpið</a>
+        </div>
+      </div>
+      <div class="forecast-card text-forecast-card">
+        <div id="vedur-text-forecast">
+          <script src="https://www.vedur.is/js/iframe.js"></script>
+          <script>
+            if (window.VI && VI.ifrm) {
+              VI.ifrm.type = 'wst-txt';
+              VI.ifrm.area = 3;
+              VI.ifrm.lang = 'is';
+              VI.ifrm.displayWeather();
+            }
+          </script>
+          <noscript>JavaScript þarf til að sýna innfellda Textaspá Veðurstofunnar.</noscript>
+        </div>
+      </div>
+    </section>
+
+    <section id="vidvaranir" class="section warning-section">
+      <div class="section-heading">
+        <p class="eyebrow">Vöktun</p>
+        <h2>Viðvaranir fyrir norðanverða Vestfirði</h2>
+        <p>Vefurinn reynir að sækja virkar CAP-viðvaranir frá Veðurstofunni og sía fyrir Vestfirði/norðanverða Vestfirði. Þetta er sett fram sem skíðasvæðis-vakt: vindur, hríð, úrkoma, skafrenningur og ferðaveður.</p>
+      </div>
+      <div id="warnings-list" class="warnings-list">Sæki viðvaranir…</div>
+      <div class="mini-links">
+        <a href="https://www.vedur.is/vidvaranir/svaedi/vestfirdir" target="_blank" rel="noopener">Viðvaranir Vestfirðir</a>
+        <a href="https://gottvedur.is/vaktin/?flokkur=Nor%C3%B0anver%C3%B0ir+Vestfir%C3%B0ir" target="_blank" rel="noopener">Frá vaktinni · Norðanverðir Vestfirðir</a>
+      </div>
+    </section>
+
     <section id="snjoflod" class="section danger">
       <div class="section-heading">
         <p class="eyebrow">Öryggi</p>
@@ -80,9 +124,9 @@
           <strong>Snjóflóðaspá Veðurstofu</strong>
           <span>Mat á aðstæðum og hættustig þar sem spá er virk.</span>
         </a>
-        <a class="safety-card" href="https://www.vedur.is/vidvaranir" target="_blank" rel="noopener">
-          <strong>Veðurviðvaranir</strong>
-          <span>Vindur, úrkoma, hálka og aðrar viðvaranir.</span>
+        <a class="safety-card" href="https://www.vedur.is/vidvaranir/svaedi/vestfirdir" target="_blank" rel="noopener">
+          <strong>Veðurviðvaranir Vestfirðir</strong>
+          <span>Vindur, úrkoma, hálka, hríð og skafrenningur.</span>
         </a>
         <a class="safety-card" href="https://umferdin.is/" target="_blank" rel="noopener">
           <strong>Færð og lokanir</strong>
