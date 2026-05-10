@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="is">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Skíðaveður Ísafjarðarbæjar</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <nav class="nav">
+      <div class="brand">⛷️ Skíðaveður</div>
+      <div class="links">
+        <a href="#stodvar">Stöðvar</a>
+        <a href="#spa">Spá</a>
+        <a href="#snjoflod">Snjóflóð</a>
+        <a href="#kort">Kort</a>
+      </div>
+    </nav>
+    <section class="hero-inner">
+      <p class="eyebrow">Ísafjörður · Seljalandsdalur · Tungudalur · fjallaleiðir</p>
+      <h1>Veðurmælaborð fyrir skíðasvæði Ísafjarðarbæjar</h1>
+      <p class="intro">Samantekt á mælingum frá Veðurstofu Íslands, staðbundinni spá næstu daga, Windy-kortum og flýtileiðum í snjóflóðamat.</p>
+      <div class="hero-actions">
+        <a class="button primary" href="https://gottvedur.is/vedur/athuganir/2641/" target="_blank" rel="noopener">Seljalandsdalur skíðaskáli</a>
+        <a class="button" href="https://gottvedur.is/snjoflod/svaedi/NV/" target="_blank" rel="noopener">Snjóflóðaspá</a>
+      </div>
+    </section>
+  </header>
+
+  <main>
+    <section class="status-panel" aria-live="polite">
+      <div>
+        <span class="label">Síðast uppfært</span>
+        <strong id="updated">Sæki gögn…</strong>
+      </div>
+      <div>
+        <span class="label">Heildarmat</span>
+        <strong id="ski-score">—</strong>
+      </div>
+      <div>
+        <span class="label">Athugasemd</span>
+        <strong id="ski-note">Gögn frá opinberum og opnum veðurþjónustum.</strong>
+      </div>
+    </section>
+
+    <section id="stodvar" class="section">
+      <div class="section-heading">
+        <p class="eyebrow">Núverandi mælingar</p>
+        <h2>Veðurstöðvar</h2>
+        <p>Reynir að sækja nýjustu klukkustundarmælingar úr nýja API Veðurstofunnar. Ef vafrinn nær ekki sambandi birtast beinir hlekkir í stöðvarnar.</p>
+      </div>
+      <div id="station-grid" class="grid cards"></div>
+    </section>
+
+    <section id="spa" class="section split">
+      <div>
+        <p class="eyebrow">Næstu dagar</p>
+        <h2>Staðbundin fjallaspá</h2>
+        <p>Spáin hér notar hnit Seljalandsdals/skíðasvæðisins og sýnir hita, úrkomu, snjókomu, vind og hviður næstu daga. Berðu alltaf saman við textaspá Veðurstofunnar þegar veður er tvísýnt.</p>
+        <div class="mini-links">
+          <a href="https://gottvedur.is/vedur/spar/2641/" target="_blank" rel="noopener">Spá Veðurstofu fyrir skíðaskála</a>
+          <a href="https://gottvedur.is/vedur/spar/2636/" target="_blank" rel="noopener">Spá Veðurstofu fyrir Þverfjall</a>
+          <a href="https://www.vedur.is/vedur/spar/textaspar/vestfirdir/" target="_blank" rel="noopener">Textaspá Vestfjarða</a>
+        </div>
+      </div>
+      <div class="forecast-card">
+        <div id="forecast-list" class="forecast-list">Sæki spá…</div>
+      </div>
+    </section>
+
+    <section id="snjoflod" class="section danger">
+      <div class="section-heading">
+        <p class="eyebrow">Öryggi</p>
+        <h2>Snjóflóð, viðvaranir og leiðarval</h2>
+        <p>Þetta mælaborð kemur ekki í staðinn fyrir snjóflóðaspá, staðbundið mat eða lokanir. Þegar snjór, skafrenningur, hlýnun eða rigning eru í spilinu á að skoða opinberar upplýsingar áður en farið er á fjall.</p>
+      </div>
+      <div class="grid safety-grid">
+        <a class="safety-card" href="https://gottvedur.is/snjoflod/" target="_blank" rel="noopener">
+          <strong>Snjóflóðaspá Veðurstofu</strong>
+          <span>Mat á aðstæðum og hættustig þar sem spá er virk.</span>
+        </a>
+        <a class="safety-card" href="https://www.vedur.is/vidvaranir" target="_blank" rel="noopener">
+          <strong>Veðurviðvaranir</strong>
+          <span>Vindur, úrkoma, hálka og aðrar viðvaranir.</span>
+        </a>
+        <a class="safety-card" href="https://umferdin.is/" target="_blank" rel="noopener">
+          <strong>Færð og lokanir</strong>
+          <span>Vegagerðin: vegir að skíðasvæðum og fjallvegir.</span>
+        </a>
+        <a class="safety-card" href="https://safetravel.is/" target="_blank" rel="noopener">
+          <strong>Ferðaöryggi</strong>
+          <span>Ferðaáætlanir, búnaður og fjallaráð.</span>
+        </a>
+      </div>
+    </section>
+
+    <section id="kort" class="section">
+      <div class="section-heading">
+        <p class="eyebrow">Kort og vindur</p>
+        <h2>Windy yfirlit</h2>
+        <p>Notaðu flipana til að skoða svæðin sem skipta máli fyrir skíðaveður og leiðir í kringum Ísafjörð.</p>
+      </div>
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-lat="66.067" data-lon="-23.214" data-zoom="11">Skíðaskáli</button>
+        <button class="tab" data-lat="66.060" data-lon="-23.185" data-zoom="11">Tungudalur</button>
+        <button class="tab" data-lat="66.076" data-lon="-23.199" data-zoom="11">Seljalandsdalur</button>
+        <button class="tab" data-lat="66.101" data-lon="-23.104" data-zoom="10">Nónvatn / Heiðin</button>
+        <button class="tab" data-lat="66.040" data-lon="-23.290" data-zoom="10">Miðfellsháls</button>
+      </div>
+      <iframe id="windy" title="Windy veðurkort" loading="lazy" src=""></iframe>
+    </section>
+
+    <section class="section ideas">
+      <p class="eyebrow">Fleira sem mætti bæta við síðar</p>
+      <h2>Hugmyndir að næstu útgáfu</h2>
+      <ul>
+        <li>Opnun skíðalyfta og brauta, handvirkt eða tengt við skíðasvæðið.</li>
+        <li>Vefmyndavélar úr Tungudal/Seljalandsdal ef opinberar slóðir eru til.</li>
+        <li>Snjódýpt og nýsnævi, ef mæligögn eru aðgengileg.</li>
+        <li>„Powder alert“ sem kviknar við kulda, snjókomu og hóflegan vind.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>Gögn og tenglar: Veðurstofa Íslands, Windy, Vegagerðin og Safetravel. Athugaðu alltaf frumheimildir áður en ákvarðanir eru teknar.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
