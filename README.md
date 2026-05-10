@@ -1,23 +1,18 @@
-# Skíðaveður Ísafjarðarbæjar
+# Skíðaveður Ísafjarðarbæjar v4
 
 Static vefsíða fyrir veðurmælaborð skíðasvæða við Ísafjörð.
 
-## Opnun
-Opnaðu `index.html` beint í vafra, eða settu möppuna á hvaða static hýsingu sem er, t.d. Netlify, Vercel, GitHub Pages eða Apache/Nginx.
+## Netlify
+- Build command: skilja eftir tómt
+- Publish directory: `.`
 
-## Gögn
-- Veðurstofa Íslands API: nýjustu athuganir sjálfvirkra stöðva.
-- Veðurstofan/gottvedur.is: beinir hlekkir á stöðvar, spár og snjóflóðaupplýsingar.
-- Open-Meteo: 7 daga staðbundin spá fyrir hnit skíðaskála.
-- Windy: innfellt kort með vindi og veðurkerfum.
+## v4 breytingar
+- Textaspá Vestfjarða er innfelld sem iframe frá Veðurstofu.
+- Veðurspáhlutinn er myndrænni með táknum, skíðamati og mælikortum.
+- Stöð 2640 er ekki notuð í þessari útgáfu.
+- Viðvörunarvakt reynir að sækja virkar CAP-viðvaranir og sía fyrir Vestfirði/norðanverða Vestfirði.
 
-## Stöðvar sem eru settar inn
+## Stöðvar
 - 2636 Þverfjall
-- 2640 Seljalandsdalur
 - 2641 Seljalandsdalur - skíðaskáli
 - 2644 Ísafjörður Tungudalur
-
-## Næstu skref
-- Bæta við raunverulegum vefmyndavélaslóðum ef þær eru tiltækar.
-- Bæta við snjódýpt/nýsnævi ef opin gögn finnast.
-- Tengja opnun lyfta og brauta við einfalt CMS eða JSON skrá.

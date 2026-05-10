@@ -60,7 +60,7 @@
       <div>
         <p class="eyebrow">Næstu dagar</p>
         <h2>Staðbundin fjallaspá</h2>
-        <p>Spáin hér notar hnit Seljalandsdals/skíðasvæðisins og sýnir hita, úrkomu, snjókomu, vind og hviður næstu daga. Berðu alltaf saman við textaspá Veðurstofunnar þegar veður er tvísýnt.</p>
+        <p>Spáin hér notar hnit Seljalandsdals/skíðasvæðisins og sýnir daglegt skíðamat, veðurtákn, hita, nýsnjó/úrkomu, vind og hviður næstu daga. Berðu alltaf saman við textaspá Veðurstofunnar þegar veður er tvísýnt.</p>
         <div class="mini-links">
           <a href="https://gottvedur.is/vedur/spar/2641/" target="_blank" rel="noopener">Spá Veðurstofu fyrir skíðaskála</a>
           <a href="https://gottvedur.is/vedur/spar/2636/" target="_blank" rel="noopener">Spá Veðurstofu fyrir Þverfjall</a>
@@ -68,7 +68,7 @@
         </div>
       </div>
       <div class="forecast-card">
-        <div id="forecast-list" class="forecast-list">Sæki spá…</div>
+        <div class="forecast-toolbar"><span>Dagaspá</span><span class="muted-small">Sjálfvirk samantekt fyrir skíðasvæðið</span></div><div id="forecast-list" class="forecast-list improved">Sæki spá…</div>
       </div>
     </section>
 
@@ -78,25 +78,21 @@
       <div>
         <p class="eyebrow">Veðurfræðingur</p>
         <h2>Textaspá fyrir Vestfirði</h2>
-        <p>Textaspáin frá Veðurstofunni á að vega þungt þegar sjálfvirkar staðaspár og kort eru ósamhljóða. Hér er hún sett inn sem opinbert iframe frá Veðurstofunni fyrir svæði 3: Vestfirðir.</p>
+        <p>Textaspáin frá Veðurstofunni á að vega þungt þegar sjálfvirkar staðaspár og kort eru ósamhljóða. Þar sem textaspáin er best studd sem iframe er hún innfelld hér beint frá Veðurstofunni, með varahlekk ef hún hleðst ekki.</p>
         <div class="mini-links">
-          <a href="https://www.vedur.is/vedur/spar/stadaspar/vestfirdir/" target="_blank" rel="noopener">Opna Textaspá Vestfjarða</a>
-          <a href="https://www.vedur.is/vedur/spar/stadaspar/vestfirdir/djupid/" target="_blank" rel="noopener">Opna Djúpið</a>
+          <a href="https://www.vedur.is/vedur/spar/textaspar/vestfirdir/" target="_blank" rel="noopener">Opna Textaspá Vestfjarða</a>
+          <a href="https://www.vedur.is/vedur/spar/textaspar/vestfirdir/" target="_blank" rel="noopener">Opna Djúpið</a>
         </div>
       </div>
       <div class="forecast-card text-forecast-card">
-        <div id="vedur-text-forecast">
-          <script src="https://www.vedur.is/js/iframe.js"></script>
-          <script>
-            if (window.VI && VI.ifrm) {
-              VI.ifrm.type = 'wst-txt';
-              VI.ifrm.area = 3;
-              VI.ifrm.lang = 'is';
-              VI.ifrm.displayWeather();
-            }
-          </script>
-          <noscript>JavaScript þarf til að sýna innfellda Textaspá Veðurstofunnar.</noscript>
+        <div class="iframe-shell">
+          <iframe
+            class="vedur-text-iframe"
+            src="https://www.vedur.is/ifr/w/?area=3&lang=is&op=ifr&type=stwin_txt"
+            title="Textaspá Veðurstofu fyrir Vestfirði"
+            loading="lazy"></iframe>
         </div>
+        <p class="iframe-fallback">Ef textaspáin birtist ekki hér skaltu nota hnappinn „Opna Textaspá Vestfjarða“ vinstra megin.</p>
       </div>
     </section>
 

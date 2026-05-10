@@ -89,6 +89,33 @@ function weatherText(code){
   return map[code] || 'Veður';
 }
 
+function weatherIcon(code){
+  if ([0,1].includes(code)) return '☀️';
+  if ([2,3].includes(code)) return '☁️';
+  if ([45,48].includes(code)) return '🌫️';
+  if ([51,53,55,61,63,65,80,81,82].includes(code)) return '🌧️';
+  if ([71,73,75,85,86].includes(code)) return '❄️';
+  if ([95].includes(code)) return '⛈️';
+  return '🌡️';
+}
+
+function skiDayScore({snow, gust, wind, tmax, tmin, precip}) {
+  let score = 70;
+  if (snow >= 3) score += 14;
+  if (snow >= 8) score += 8;
+  if (tmax > 2) score -= 18;
+  if (tmin > 0) score -= 8;
+  if (wind > 12) score -= 12;
+  if (gust > 18) score -= 18;
+  if (gust > 25) score -= 20;
+  if (precip > 10 && tmax > 0) score -= 10;
+  score = Math.max(0, Math.min(100, Math.round(score)));
+  if (score >= 80) return {score, label:'Mjög gott', cls:'good'};
+  if (score >= 60) return {score, label:'Ágætt', cls:'ok'};
+  if (score >= 40) return {score, label:'Varhugavert', cls:'watch'};
+  return {score, label:'Erfitt', cls:'bad'};
+}
+
 async function loadForecast() {
   const el = $('#forecast-list');
   try {
@@ -96,15 +123,35 @@ async function loadForecast() {
     const res = await fetch(url);
     const json = await res.json();
     const d = json.daily;
-    el.innerHTML = d.time.slice(0,7).map((date, i) => `<div class="forecast-day">
-      <strong>${new Date(date + 'T12:00:00').toLocaleDateString('is-IS', { weekday:'short', day:'numeric', month:'short' })}</strong>
-      <span class="pill">${weatherText(d.weather_code[i])}</span>
-      <span class="pill">${Math.round(d.temperature_2m_min[i])}–${Math.round(d.temperature_2m_max[i])}°C</span>
-      <span class="pill">úrkoma ${fmt(d.precipitation_sum[i], ' mm')}</span>
-      <span class="pill">snjór ${fmt(d.snowfall_sum[i], ' cm')}</span>
-      <span class="pill">vindur ${fmt(d.wind_speed_10m_max[i], ' m/s')}</span>
-      <span class="pill">hviður ${fmt(d.wind_gusts_10m_max[i], ' m/s')}</span>
-    </div>`).join('');
+    el.innerHTML = d.time.slice(0,7).map((date, i) => {
+      const values = {
+        snow: Number(d.snowfall_sum[i] || 0),
+        gust: Number(d.wind_gusts_10m_max[i] || 0),
+        wind: Number(d.wind_speed_10m_max[i] || 0),
+        tmax: Number(d.temperature_2m_max[i] || 0),
+        tmin: Number(d.temperature_2m_min[i] || 0),
+        precip: Number(d.precipitation_sum[i] || 0)
+      };
+      const score = skiDayScore(values);
+      const day = new Date(date + 'T12:00:00').toLocaleDateString('is-IS', { weekday:'long', day:'numeric', month:'short' });
+      return `<article class="forecast-tile ${score.cls}">
+        <div class="forecast-main">
+          <div class="weather-icon">${weatherIcon(d.weather_code[i])}</div>
+          <div>
+            <strong>${day}</strong>
+            <span>${weatherText(d.weather_code[i])}</span>
+          </div>
+        </div>
+        <div class="score-ring" title="Skíðamat ${score.score}/100"><b>${score.score}</b><small>${score.label}</small></div>
+        <div class="forecast-metrics">
+          <span><b>${Math.round(values.tmin)}–${Math.round(values.tmax)}°C</b><small>hiti</small></span>
+          <span><b>${fmt(values.snow, ' cm')}</b><small>snjór</small></span>
+          <span><b>${fmt(values.precip, ' mm')}</b><small>úrkoma</small></span>
+          <span><b>${fmt(values.wind, ' m/s')}</b><small>vindur</small></span>
+          <span><b>${fmt(values.gust, ' m/s')}</b><small>hviður</small></span>
+        </div>
+      </article>`;
+    }).join('');
   } catch(e) {
     el.textContent = 'Ekki náðist að sækja spá. Opnaðu hlekkina í spá Veðurstofunnar.';
   }
