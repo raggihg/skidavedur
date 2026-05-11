@@ -1,226 +1,123 @@
-const stations = [
-  { id: 2636, name: 'Þverfjall', height: 'fjall', url: 'https://gottvedur.is/vedur/athuganir/2636/' },
-  { id: 2641, name: 'Seljalandsdalur · skíðaskáli', height: '283 m', url: 'https://gottvedur.is/vedur/athuganir/2641/' },
-  { id: 2644, name: 'Ísafjörður · Tungudalur', height: '4 m', url: 'https://gottvedur.is/vedur/athuganir/2644/' }
+const STATIONS = [
+  { id: '2641', name: 'Seljalandsdalur · skíðaskáli', short: 'Skíðaskáli' },
+  { id: '2644', name: 'Ísafjörður · Tungudalur', short: 'Tungudalur' },
+  { id: '2636', name: 'Þverfjall', short: 'Þverfjall' }
 ];
+const PLACE = { lat: 66.074, lon: -23.126, name: 'Skíðasvæði Ísafjarðarbæjar' };
+const API = 'https://api.vedur.is/weather';
+const fmtTime = d => new Intl.DateTimeFormat('is-IS',{hour:'2-digit',minute:'2-digit',weekday:'short'}).format(new Date(d));
+const fmtShort = d => new Intl.DateTimeFormat('is-IS',{hour:'2-digit',minute:'2-digit'}).format(new Date(d));
 
-const fallback = stations.map(s => ({station_id:s.id, t:null, f:null, d:null, fx:null, rh:null, time:null}));
+function degToCompass(deg){ if(deg==null||Number.isNaN(+deg)) return '—'; const dirs=['N','NNA','NA','ANA','A','ASA','SA','SSA','S','SSV','SV','VSV','V','VNV','NV','NNV']; return dirs[Math.round((+deg%360)/22.5)%16]; }
+function windArrow(deg){ if(deg==null||Number.isNaN(+deg)) return '↗'; return '↑'; }
+function valueOf(row, keys){ for(const k of keys){ if(row && row[k] != null) return row[k]; if(row?.parameters?.[k]?.value != null) return row.parameters[k].value; if(row?.measurements?.[k] != null) return row.measurements[k]; } return null; }
+async function fetchJson(url){ const r=await fetch(url,{cache:'no-store'}); if(!r.ok) throw new Error(r.status+' '+url); return r.json(); }
 
-const $ = (sel) => document.querySelector(sel);
-const stationGrid = $('#station-grid');
-const updated = $('#updated');
-const skiScore = $('#ski-score');
-const skiNote = $('#ski-note');
-
-function fmt(v, unit='') { return v === null || v === undefined || v === -99 || Number.isNaN(v) ? '—' : `${String(v).replace('.', ',')}${unit}`; }
-
-function windCompass(deg) {
-  if (deg === null || deg === undefined || deg === '—') return '—';
-  if (typeof deg === 'string' && Number.isNaN(Number(deg))) return deg;
-  const d = ((Number(deg) % 360) + 360) % 360;
-  const dirs = ['N','NA','A','SA','S','SV','V','NV'];
-  return dirs[Math.round(d / 45) % 8];
+async function getLatestObs(){
+  const urls = [
+    `${API}/observations/aws/hour/latest?stations=${STATIONS.map(s=>s.id).join(',')}&parameters=basic`,
+    `${API}/observations/aws/hour/latest?station_ids=${STATIONS.map(s=>s.id).join(',')}&parameters=basic`,
+    `${API}/observations/aws/hour/latest?stations=${STATIONS.map(s=>s.id).join(',')}`
+  ];
+  for(const url of urls){ try { return await fetchJson(url); } catch(e){} }
+  throw new Error('Náði ekki nýjustu mælingum');
 }
-
-function windArrow(direction) {
-  const deg = Number(direction);
-  if (!Number.isFinite(deg)) return '<span class="wind-arrow muted">•</span>';
-  return `<span class="wind-arrow" style="--wind-deg:${deg}deg" title="Vindátt ${Math.round(deg)}°">↑</span>`;
+async function getHistory(){
+  const now = new Date(); const from = new Date(now.getTime()-24*3600e3);
+  const start = from.toISOString(); const end = now.toISOString();
+  const urls = [
+    `${API}/observations/aws/hour?stations=${STATIONS.map(s=>s.id).join(',')}&start_time=${encodeURIComponent(start)}&end_time=${encodeURIComponent(end)}&parameters=basic`,
+    `${API}/observations/aws/hour?station_ids=${STATIONS.map(s=>s.id).join(',')}&time_from=${encodeURIComponent(start)}&time_to=${encodeURIComponent(end)}&parameters=basic`,
+    `${API}/observations/aws/hour?stations=${STATIONS.map(s=>s.id).join(',')}&from=${encodeURIComponent(start)}&to=${encodeURIComponent(end)}`
+  ];
+  for(const url of urls){ try { return await fetchJson(url); } catch(e){} }
+  return null;
 }
-
-function windLine(direction, speed) {
-  const deg = Number(direction);
-  const compass = windCompass(direction);
-  const degrees = Number.isFinite(deg) ? `${Math.round(deg)}°` : '—';
-  return `${windArrow(direction)} <span>${compass} · ${degrees} · ${fmt(speed, ' m/s')}</span>`;
+async function getForecast(){
+  // Veðurstofu API first. Fallback: api.met.no locationforecast, which is CORS-friendly and hourly.
+  const urls = [
+    `${API}/forecasts/point?lat=${PLACE.lat}&lon=${PLACE.lon}`,
+    `${API}/forecast/point?lat=${PLACE.lat}&lon=${PLACE.lon}`,
+    `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${PLACE.lat}&lon=${PLACE.lon}`
+  ];
+  for(const url of urls){ try { return await fetchJson(url); } catch(e){} }
+  throw new Error('Náði ekki klukkustundaspá');
 }
-
-function renderStations(rows) {
-  stationGrid.innerHTML = stations.map(s => {
-    const r = rows.find(x => Number(x.station_id || x.station || x.stationId) === s.id) || {};
-    const temp = r.t ?? r.T ?? r.temperature;
-    const wind = r.f ?? r.F ?? r.wind_speed;
-    const gust = r.fx ?? r.FX ?? r.wind_gust;
-    const hum = r.rh ?? r.RH ?? r.humidity;
-    const direction = r.d ?? r.D ?? r.wind_direction;
-    return `<article class="card">
-      <h3>${s.name}</h3>
-      <div class="station-meta">Stöð ${s.id} · ${s.height}</div>
-      <div class="metric"><span>Hiti</span><strong>${fmt(temp, '°C')}</strong></div>
-      <div class="metric wind-metric"><span>Vindur</span><strong>${windLine(direction, wind)}</strong></div>
-      <div class="metric"><span>Hviða</span><strong>${fmt(gust, ' m/s')}</strong></div>
-      <div class="metric"><span>Raki</span><strong>${fmt(hum, '%')}</strong></div>
-      <a class="open" href="${s.url}" target="_blank" rel="noopener">Opna frumgögn →</a>
-    </article>`;
+async function getWarnings(){
+  const urls = [
+    'https://api.vedur.is/cap/1.0/alerts/active?lang=is',
+    'https://api.vedur.is/cap/1.0/alerts/active',
+    'https://api.vedur.is/cap/v1/alerts/active?lang=is'
+  ];
+  for(const url of urls){ try { return await fetchJson(url); } catch(e){} }
+  return null;
+}
+function flattenObs(data){
+  const arr = Array.isArray(data) ? data : data?.results || data?.data || data?.observations || data?.items || [];
+  return arr.flatMap(x => Array.isArray(x.observations) ? x.observations.map(o=>({...o, station_id:x.station_id||x.id||x.station})) : [x]);
+}
+function renderStations(data){
+  const arr = flattenObs(data);
+  document.getElementById('stationCards').innerHTML = STATIONS.map(st=>{
+    const row = arr.find(x => String(x.station_id||x.station||x.id||x.stationId) === st.id) || {};
+    const t = valueOf(row,['T','temp','temperature','air_temperature']);
+    const f = valueOf(row,['F','wind_speed','windSpeed','ff']);
+    const fx = valueOf(row,['FX','gust','wind_gust','max_wind_speed']);
+    const d = valueOf(row,['D','wind_direction','windDirection','dd']);
+    return `<article class="card"><h3>${st.name}</h3><span class="muted">Stöð ${st.id}</span><div class="metric-row"><div class="metric"><span>Hiti</span><strong>${t??'—'}°</strong></div><div class="metric"><span>Vindur</span><strong>${f??'—'} m/s</strong></div></div><div class="metric-row"><div><span class="wind-arrow" style="transform:rotate(${d||0}deg)">${windArrow(d)}</span><b>${degToCompass(d)}</b> <span class="muted">${d??'—'}°</span></div><div><span class="muted">Hviða</span> <b>${fx??'—'} m/s</b></div></div></article>`;
   }).join('');
-
-  const temps = rows.map(r => Number(r.t ?? r.T ?? r.temperature)).filter(Number.isFinite);
-  const winds = rows.map(r => Number(r.f ?? r.F ?? r.wind_speed)).filter(Number.isFinite);
-  const gusts = rows.map(r => Number(r.fx ?? r.FX ?? r.wind_gust)).filter(Number.isFinite);
-  if (temps.length || winds.length || gusts.length) {
-    const avgTemp = temps.length ? temps.reduce((a,b)=>a+b,0) / temps.length : null;
-    const maxWind = winds.length ? Math.max(...winds) : 0;
-    const maxGust = gusts.length ? Math.max(...gusts) : 0;
-    skiScore.textContent = maxGust >= 25 ? 'Mjög varasamar hviður' : maxWind >= 18 ? 'Hvassviðri á fjalli' : avgTemp !== null && avgTemp <= 1 && maxWind < 14 ? 'Gott skíðaveður mögulegt' : 'Fylgjast vel með';
-    skiNote.textContent = avgTemp !== null && avgTemp > 2 ? 'Hlýindi geta haft áhrif á snjó og snjóflóðahættu.' : 'Skoðaðu vindátt, hviður, viðvaranir og snjóflóðaspá áður en farið er.';
+  const winds = arr.map(r=>+valueOf(r,['F','wind_speed','windSpeed','ff'])).filter(Number.isFinite);
+  const temps = arr.map(r=>+valueOf(r,['T','temp','temperature','air_temperature'])).filter(Number.isFinite);
+  let score = 72; if(Math.max(...winds,0)>15) score-=35; else if(Math.max(...winds,0)>10) score-=18; if(Math.max(...temps,0)>3) score-=12; if(Math.min(...temps,99)<-10) score-=8;
+  document.querySelector('#skiScore strong').textContent = Math.max(0,Math.min(100,Math.round(score))) + '/100';
+}
+function parseForecast(data){
+  const series = data?.properties?.timeseries || data?.timeseries || data?.forecast || data?.data || [];
+  return series.slice(0,24).map(x=>{
+    const inst = x.data?.instant?.details || x.instant || x.details || x;
+    const next1 = x.data?.next_1_hours?.details || x.next_1_hours || {};
+    const summary = x.data?.next_1_hours?.summary?.symbol_code || x.symbol_code || x.summary || '';
+    return {time:x.time||x.valid_time||x.date, temp:inst.air_temperature??inst.temperature??inst.T, wind:inst.wind_speed??inst.F, gust:inst.wind_speed_of_gust??inst.gust??inst.FX, dir:inst.wind_from_direction??inst.wind_direction??inst.D, precip:next1.precipitation_amount??x.precipitation_amount??0, summary};
+  }).filter(x=>x.time);
+}
+let forecastMode='table', lastForecast=[];
+function renderForecast(rows){
+  lastForecast=rows;
+  const el=document.getElementById('hourlyForecast');
+  if(!rows.length){ el.innerHTML='<div class="warning warn">Náði ekki að birta klukkustundaspá. Prófaðu aftur síðar.</div>'; return; }
+  if(forecastMode==='cards'){
+    el.innerHTML=`<div class="hour-cards">${rows.map(r=>`<div class="hour-card"><span class="muted">${fmtShort(r.time)}</span><strong>${Math.round(r.temp??0)}°</strong><div><span class="wind-arrow" style="transform:rotate(${r.dir||0}deg)">↑</span>${Math.round(r.wind??0)} m/s</div><small>${r.precip??0} mm</small></div>`).join('')}</div>`;
   } else {
-    skiScore.textContent = 'Skoða frumheimildir';
-    skiNote.textContent = 'Live gögn birtust ekki í vafra; notaðu hlekkina í stöðvarnar.';
+    el.innerHTML=`<table class="hourly-table"><thead><tr><th>Tími</th><th>Hiti</th><th>Vindur</th><th>Hviða</th><th>Átt</th><th>Úrkoma</th><th>Lýsing</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${fmtTime(r.time)}</b></td><td>${r.temp??'—'}°C</td><td>${r.wind??'—'} m/s</td><td>${r.gust??'—'} m/s</td><td><span class="wind-arrow" style="transform:rotate(${r.dir||0}deg)">↑</span>${degToCompass(r.dir)} ${r.dir?Math.round(r.dir)+'°':''}</td><td>${r.precip??0} mm</td><td>${String(r.summary||'').replaceAll('_',' ')}</td></tr>`).join('')}</tbody></table>`;
   }
 }
-
-async function loadStations() {
-  try {
-    const res = await fetch('https://api.vedur.is/weather/observations/aws/hour/latest?parameters=basic');
-    if (!res.ok) throw new Error('IMO API svaraði ekki');
-    const json = await res.json();
-    const data = Array.isArray(json) ? json : (json.data || json.results || json.observations || []);
-    const rows = data.filter(r => stations.some(s => Number(r.station_id || r.station || r.stationId) === s.id));
-    renderStations(rows.length ? rows : fallback);
-    updated.textContent = new Date().toLocaleString('is-IS', { dateStyle: 'medium', timeStyle: 'short' });
-  } catch (e) {
-    renderStations(fallback);
-    updated.textContent = 'Ekki náðist að sækja live gögn';
-  }
+function flattenHistory(data){ return flattenObs(data).map(r=>({station:String(r.station_id||r.station||r.id||r.stationId), time:r.time||r.date||r.valid_time||r.observation_time, temp:+valueOf(r,['T','temp','temperature','air_temperature']), wind:+valueOf(r,['F','wind_speed','windSpeed','ff']), gust:+valueOf(r,['FX','gust','wind_gust','max_wind_speed'])})).filter(r=>r.time); }
+function renderTrend(data){
+  const rows = flattenHistory(data);
+  const el = document.getElementById('trendSummary');
+  if(!rows.length){ el.innerHTML='<div class="warning warn">Síðustu 24 klst. birtast þegar sögulegar mælingar svara frá API.</div>'; return; }
+  const temps=rows.map(r=>r.temp).filter(Number.isFinite), winds=rows.map(r=>r.wind).filter(Number.isFinite), gusts=rows.map(r=>r.gust).filter(Number.isFinite);
+  el.innerHTML=`<div class="pill"><span class="muted">Hæsti hiti</span><strong>${Math.max(...temps).toFixed(1)}°</strong></div><div class="pill"><span class="muted">Lægsti hiti</span><strong>${Math.min(...temps).toFixed(1)}°</strong></div><div class="pill"><span class="muted">Mesti vindur</span><strong>${Math.max(...winds).toFixed(1)} m/s</strong></div><div class="pill"><span class="muted">Mesta hviða</span><strong>${Math.max(...gusts).toFixed(1)} m/s</strong></div>`;
+  drawChart(rows);
 }
-
-function weatherText(code){
-  const map = {0:'Heiðskírt',1:'Léttskýjað',2:'Hálfskýjað',3:'Alskýjað',45:'Þoka',48:'Hrímþoka',51:'Úði',53:'Úði',55:'Mikill úði',61:'Rigning',63:'Rigning',65:'Mikil rigning',71:'Snjókoma',73:'Snjókoma',75:'Mikil snjókoma',80:'Skúrir',81:'Skúrir',82:'Miklar skúrir',85:'Él',86:'Mikil él',95:'Þrumur'};
-  return map[code] || 'Veður';
+function drawChart(rows){
+  const c=document.getElementById('trendChart'), ctx=c.getContext('2d'), W=c.width,H=c.height,p=48; ctx.clearRect(0,0,W,H); ctx.strokeStyle='#ffffff22'; ctx.lineWidth=1; for(let i=0;i<5;i++){let y=p+i*(H-2*p)/4;ctx.beginPath();ctx.moveTo(p,y);ctx.lineTo(W-p,y);ctx.stroke();}
+  const vals=rows.flatMap(r=>[r.temp,r.wind,r.gust]).filter(Number.isFinite); const min=Math.min(...vals)-2,max=Math.max(...vals)+2; const times=[...new Set(rows.map(r=>r.time))].sort(); const x=t=>p+times.indexOf(t)*(W-2*p)/Math.max(1,times.length-1); const y=v=>H-p-(v-min)*(H-2*p)/(max-min||1);
+  [['temp','#7dd3fc'],['wind','#8ef0b0'],['gust','#ffd166']].forEach(([key,col])=>{ ctx.strokeStyle=col; ctx.lineWidth=3; ctx.beginPath(); let started=false; rows.filter(r=>Number.isFinite(r[key])).sort((a,b)=>new Date(a.time)-new Date(b.time)).forEach(r=>{ if(!started){ctx.moveTo(x(r.time),y(r[key]));started=true}else ctx.lineTo(x(r.time),y(r[key])); }); ctx.stroke(); });
+  ctx.fillStyle='#d7e5f7'; ctx.font='22px system-ui'; ctx.fillText('Hiti',70,30); ctx.fillStyle='#8ef0b0'; ctx.fillText('Vindur',145,30); ctx.fillStyle='#ffd166'; ctx.fillText('Hviður',245,30);
 }
-
-function weatherIcon(code){
-  if ([0,1].includes(code)) return '☀️';
-  if ([2,3].includes(code)) return '☁️';
-  if ([45,48].includes(code)) return '🌫️';
-  if ([51,53,55,61,63,65,80,81,82].includes(code)) return '🌧️';
-  if ([71,73,75,85,86].includes(code)) return '❄️';
-  if ([95].includes(code)) return '⛈️';
-  return '🌡️';
+function renderWarnings(data){
+  const el=document.getElementById('warningsBox'); const arr=Array.isArray(data)?data:data?.features||data?.alerts||data?.items||[];
+  const hits=arr.filter(a=>{const s=JSON.stringify(a).toLowerCase();return s.includes('vestfir')||s.includes('isaf')||s.includes('djúp')||s.includes('northwest');});
+  if(!data){ el.innerHTML='<div class="warning warn"><b>Náði ekki að sækja viðvaranir.</b><br><span class="muted">Notaðu hnappinn til að opna Veðurstofu.</span></div>'; return; }
+  if(!hits.length){ el.innerHTML='<div class="warning good"><b>Engin sértæk viðvörun fannst fyrir Vestfirði í virkum gögnum.</b><br><span class="muted">Athugaðu alltaf Veðurstofu áður en farið er á fjall.</span></div>'; return; }
+  el.innerHTML=hits.slice(0,5).map(a=>`<div class="warning bad"><b>${a.title||a.properties?.headline||a.info?.headline||'Viðvörun'}</b><p>${a.description||a.properties?.description||a.info?.description||''}</p></div>`).join('');
 }
-
-function skiDayScore({snow, gust, wind, tmax, tmin, precip}) {
-  let score = 70;
-  if (snow >= 3) score += 14;
-  if (snow >= 8) score += 8;
-  if (tmax > 2) score -= 18;
-  if (tmin > 0) score -= 8;
-  if (wind > 12) score -= 12;
-  if (gust > 18) score -= 18;
-  if (gust > 25) score -= 20;
-  if (precip > 10 && tmax > 0) score -= 10;
-  score = Math.max(0, Math.min(100, Math.round(score)));
-  if (score >= 80) return {score, label:'Mjög gott', cls:'good'};
-  if (score >= 60) return {score, label:'Ágætt', cls:'ok'};
-  if (score >= 40) return {score, label:'Varhugavert', cls:'watch'};
-  return {score, label:'Erfitt', cls:'bad'};
-}
-
-async function loadForecast() {
-  const el = $('#forecast-list');
-  try {
-    const url = 'https://api.open-meteo.com/v1/forecast?latitude=66.067&longitude=-23.214&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,wind_speed_10m_max,wind_gusts_10m_max&timezone=Atlantic%2FReykjavik&wind_speed_unit=ms';
-    const res = await fetch(url);
-    const json = await res.json();
-    const d = json.daily;
-    el.innerHTML = d.time.slice(0,7).map((date, i) => {
-      const values = {
-        snow: Number(d.snowfall_sum[i] || 0),
-        gust: Number(d.wind_gusts_10m_max[i] || 0),
-        wind: Number(d.wind_speed_10m_max[i] || 0),
-        tmax: Number(d.temperature_2m_max[i] || 0),
-        tmin: Number(d.temperature_2m_min[i] || 0),
-        precip: Number(d.precipitation_sum[i] || 0)
-      };
-      const score = skiDayScore(values);
-      const day = new Date(date + 'T12:00:00').toLocaleDateString('is-IS', { weekday:'long', day:'numeric', month:'short' });
-      return `<article class="forecast-tile ${score.cls}">
-        <div class="forecast-main">
-          <div class="weather-icon">${weatherIcon(d.weather_code[i])}</div>
-          <div>
-            <strong>${day}</strong>
-            <span>${weatherText(d.weather_code[i])}</span>
-          </div>
-        </div>
-        <div class="score-ring" title="Skíðamat ${score.score}/100"><b>${score.score}</b><small>${score.label}</small></div>
-        <div class="forecast-metrics">
-          <span><b>${Math.round(values.tmin)}–${Math.round(values.tmax)}°C</b><small>hiti</small></span>
-          <span><b>${fmt(values.snow, ' cm')}</b><small>snjór</small></span>
-          <span><b>${fmt(values.precip, ' mm')}</b><small>úrkoma</small></span>
-          <span><b>${fmt(values.wind, ' m/s')}</b><small>vindur</small></span>
-          <span><b>${fmt(values.gust, ' m/s')}</b><small>hviður</small></span>
-        </div>
-      </article>`;
-    }).join('');
-  } catch(e) {
-    el.textContent = 'Ekki náðist að sækja spá. Opnaðu hlekkina í spá Veðurstofunnar.';
-  }
-}
-
-function warningLevelClass(severity = '') {
-  const s = String(severity).toLowerCase();
-  if (s.includes('extreme') || s.includes('red')) return 'red';
-  if (s.includes('severe') || s.includes('orange')) return 'orange';
-  if (s.includes('moderate') || s.includes('yellow')) return 'yellow';
-  return 'green';
-}
-
-function asArray(v) { return Array.isArray(v) ? v : (v ? [v] : []); }
-function capInfos(item) { return asArray(item.info || item.infos || item.cap?.info || item.alert?.info); }
-function capAreas(info) { return asArray(info.area || info.areas); }
-function textFrom(v) { return typeof v === 'string' ? v : (v?.text || v?.value || ''); }
-
-function warningMatches(info) {
-  const areaText = capAreas(info).map(a => [a.areaDesc, a.area, a.name].map(textFrom).join(' ')).join(' ');
-  const combined = `${areaText} ${info.headline || ''} ${info.description || ''} ${info.event || ''}`.toLowerCase();
-  return combined.includes('vestfir') || combined.includes('westfj') || combined.includes('norðanverð') || combined.includes('isafj') || combined.includes('ísafj') || combined.includes('djúp');
-}
-
-async function loadWarnings() {
-  const el = $('#warnings-list');
-  try {
-    const res = await fetch('https://api.vedur.is/cap/v1/capbroker/active/detailed/all/');
-    if (!res.ok) throw new Error('CAP API svaraði ekki');
-    const json = await res.json();
-    const items = Array.isArray(json) ? json : (json.alerts || json.items || json.data || json.results || []);
-    const warnings = [];
-    items.forEach(item => capInfos(item).forEach(info => {
-      if (warningMatches(info)) warnings.push({ item, info });
-    }));
-
-    if (!warnings.length) {
-      el.innerHTML = `<div class="warning ok"><strong>Engar virkar viðvaranir fundust fyrir Vestfirði.</strong><span>Skoðaðu samt frumheimild áður en farið er á fjall.</span></div>`;
-      return;
-    }
-
-    el.innerHTML = warnings.map(({info}) => {
-      const cls = warningLevelClass(info.severity || info.certainty || info.urgency);
-      const headline = info.headline || info.event || 'Veðurviðvörun';
-      const desc = info.description || info.instruction || '';
-      const onset = info.onset ? new Date(info.onset).toLocaleString('is-IS', {dateStyle:'short', timeStyle:'short'}) : '';
-      const expires = info.expires ? new Date(info.expires).toLocaleString('is-IS', {dateStyle:'short', timeStyle:'short'}) : '';
-      return `<article class="warning ${cls}">
-        <strong>${headline}</strong>
-        <span>${onset || expires ? `${onset}${expires ? ' – ' + expires : ''}` : 'Tími ekki gefinn'}</span>
-        ${desc ? `<p>${desc}</p>` : ''}
-      </article>`;
-    }).join('');
-  } catch (e) {
-    el.innerHTML = `<div class="warning"><strong>Ekki náðist að sækja viðvaranir sjálfvirkt.</strong><span>Opnaðu viðvaranir Veðurstofunnar með hlekknum hér fyrir neðan.</span></div>`;
-  }
-}
-
-function setWindy(lat, lon, zoom) {
-  $('#windy').src = `https://embed.windy.com/embed2.html?lat=${lat}&lon=${lon}&detailLat=${lat}&detailLon=${lon}&zoom=${zoom}&level=surface&overlay=wind&product=ecmwf&marker=true&message=true&metricWind=m%2Fs&metricTemp=%C2%B0C&metricRain=mm&type=map`;
-}
-
-document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => {
-  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  setWindy(btn.dataset.lat, btn.dataset.lon, btn.dataset.zoom);
-}));
-
-setWindy(66.067, -23.214, 11);
-loadStations();
-loadForecast();
-loadWarnings();
+document.querySelectorAll('[data-forecast]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-forecast]').forEach(x=>x.classList.remove('active')); b.classList.add('active'); forecastMode=b.dataset.forecast; renderForecast(lastForecast);});
+(async function init(){
+  document.getElementById('updated').textContent='Uppfært: '+new Intl.DateTimeFormat('is-IS',{dateStyle:'medium',timeStyle:'short'}).format(new Date());
+  try{ renderStations(await getLatestObs()); }catch(e){ document.getElementById('stationCards').innerHTML='<div class="card warning warn">Náði ekki live mælingum frá Veðurstofu núna.</div>'; }
+  try{ renderForecast(parseForecast(await getForecast())); }catch(e){ renderForecast([]); }
+  try{ renderTrend(await getHistory()); }catch(e){ renderTrend(null); }
+  try{ renderWarnings(await getWarnings()); }catch(e){ renderWarnings(null); }
+})();
