@@ -7,109 +7,134 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div class="page-bg"></div>
+
   <header class="hero">
-    <div>
+    <div class="hero-copy">
       <p class="eyebrow">Skíðasvæði Ísafjarðarbæjar</p>
       <h1>Skíðaveður</h1>
-      <p class="lead">Live mælingar, 24 klst. spá, þróun síðasta sólarhrings, Windy stöðvar og viðvaranir fyrir norðanverða Vestfirði.</p>
+      <p class="lead">Lifandi mælingar, þétt 24 klst. spá, þróun dagsins, viðvaranir og Windy yfirsýn fyrir Tungudal / Seljalandsdal.</p>
     </div>
-    <div class="status-card">
-      <span id="systemStatus" class="pill">Sæki gögn…</span>
-      <strong id="nowClock">--:--</strong>
-      <small>staðartími</small>
-    </div>
+
+    <aside class="hero-panel">
+      <div>
+        <span id="systemStatus" class="pill">Sæki gögn…</span>
+        <strong id="nowClock">--:--</strong>
+        <small>staðartími</small>
+      </div>
+      <button id="refreshBtn" class="ghost-button">Uppfæra</button>
+    </aside>
   </header>
 
   <main class="shell">
-    <section class="section-head">
-      <div>
-        <h2>Lifandi mælingar</h2>
-        <p>Veðurstofan + Windy PWS. Vindörvar sýna hvert vindurinn fer.</p>
+    <section id="warningsCard" class="card alert-card hidden">
+      <div class="card-title inline">
+        <h2>Viðvörun í gangi</h2>
+        <span class="tag danger">Norðanverðir Vestfirðir</span>
       </div>
-      <button id="refreshBtn">Uppfæra</button>
+      <div id="warnings"></div>
     </section>
 
-    <section class="card table-card">
-      <div class="table-wrap">
-        <table id="liveTable">
-          <thead>
-            <tr>
-              <th>Staður</th>
-              <th>Uppfært</th>
-              <th>Hiti</th>
-              <th>Vindur</th>
-              <th>Hviður</th>
-              <th>Vindátt</th>
-              <th>Úrkoma</th>
-              <th>Raki</th>
-              <th>Þrýstingur</th>
-            </tr>
-          </thead>
-          <tbody id="liveBody">
-            <tr><td colspan="9" class="muted">Sæki mælingar…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="grid two">
-      <article class="card">
+    <section class="dashboard-grid">
+      <article class="card live-card span-2">
         <div class="card-title">
-          <h2>Næstu 24 klst.</h2>
-          <span class="tag">klukkustundaspá</span>
+          <div>
+            <h2>Lifandi mælingar</h2>
+            <p>Vindörvar sýna hvert vindurinn fer. Veðurstofan birtist alltaf; Windy PWS birtist þegar Stations API skilar gögnum.</p>
+          </div>
+          <span id="latestBadge" class="tag">—</span>
+        </div>
+        <div class="table-wrap">
+          <table id="liveTable" class="live-table">
+            <thead>
+              <tr>
+                <th>Staður</th>
+                <th>Uppfært</th>
+                <th>Hiti</th>
+                <th>Vindur</th>
+                <th>Hviður</th>
+                <th>Átt</th>
+                <th>Úrkoma</th>
+                <th>Raki</th>
+                <th>Þrýst.</th>
+              </tr>
+            </thead>
+            <tbody id="liveBody">
+              <tr><td colspan="9" class="muted">Sæki mælingar…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="windyHelp" class="notice hidden"></div>
+      </article>
+
+      <article class="card compact-card">
+        <div class="card-title inline">
+          <h2>Skíðayfirlit</h2>
+          <span class="tag">live</span>
+        </div>
+        <div id="skiSummary" class="summary-stack">
+          <div class="summary-line"><span>Vindur efst</span><b>—</b></div>
+          <div class="summary-line"><span>Kaldast</span><b>—</b></div>
+          <div class="summary-line"><span>Staða</span><b>—</b></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="forecast-layout">
+      <article class="card forecast-card">
+        <div class="card-title">
+          <div>
+            <h2>Næsti sólarhringur</h2>
+            <p>Þétt klukkustundaspá. Skrunaðu til hliðar í síma.</p>
+          </div>
+          <span class="tag">24 klst.</span>
         </div>
         <div id="hourlyForecast" class="hourly-strip"></div>
       </article>
 
-      <article class="card">
-        <div class="card-title">
+      <article class="card trend-card">
+        <div class="card-title inline">
           <h2>Þróun síðustu 24 klst.</h2>
-          <span class="tag">mælingar</span>
+          <span class="tag">Þverfjall</span>
         </div>
         <canvas id="trendChart" height="180"></canvas>
         <p id="trendNote" class="muted small">Sæki söguleg gögn…</p>
       </article>
     </section>
 
-    <section class="grid two">
-      <article class="card warning-card">
+    <section class="map-layout">
+      <article class="card map-card">
         <div class="card-title">
-          <h2>Viðvaranir</h2>
-          <span class="tag danger">Vestfirðir</span>
+          <div>
+            <h2>Windy kort</h2>
+            <p>Kortið notar Map Forecast / embed. PWS-mælingar eru aðskildar í Stations API.</p>
+          </div>
+          <span class="tag">vindur / úrkoma / hiti</span>
         </div>
-        <div id="warnings">Sæki viðvaranir…</div>
+        <div class="windy-tabs">
+          <button data-overlay="wind" class="active">Vindur</button>
+          <button data-overlay="rain">Úrkoma</button>
+          <button data-overlay="snow">Snjór</button>
+          <button data-overlay="temp">Hiti</button>
+          <button data-overlay="clouds">Ský</button>
+        </div>
+        <iframe id="windyFrame" title="Windy kort" src="https://embed.windy.com/embed2.html?lat=65.985&lon=-23.275&detailLat=65.985&detailLon=-23.275&width=650&height=450&zoom=11&level=surface&overlay=wind&product=ecmwf&menu=&message=true&marker=true&calendar=now&pressure=true&type=map&location=coordinates&detail=true&metricWind=ms&metricTemp=%C2%B0C&radarRange=-1" loading="lazy"></iframe>
       </article>
 
-      <article class="card text-forecast">
-        <div class="card-title">
-          <h2>Textaspá</h2>
-          <span class="tag">Veðurstofan</span>
+      <aside class="card links-card">
+        <div class="card-title inline">
+          <h2>Flýtileiðir</h2>
+          <span class="tag">öryggi</span>
         </div>
-        <p>Textaspáin er opnuð beint hjá Veðurstofunni þar sem hún er ekki stöðugt aðgengileg sem hreint JSON fyrir static vef.</p>
-        <div class="button-row">
-          <a class="button" href="https://www.vedur.is/vedur/spar/textaspar/vestfirdir/" target="_blank" rel="noreferrer">Opna Vestfjarðaspá</a>
-          <a class="button secondary" href="https://www.vedur.is/ofanflod/snjoflodaspa/" target="_blank" rel="noreferrer">Snjóflóðaspá</a>
-        </div>
-      </article>
-    </section>
-
-    <section class="card">
-      <div class="card-title">
-        <h2>Windy kort</h2>
-        <span class="tag">vindur / úrkoma / ský</span>
-      </div>
-      <div class="windy-tabs">
-        <button data-overlay="wind" class="active">Vindur</button>
-        <button data-overlay="rain">Úrkoma</button>
-        <button data-overlay="temp">Hiti</button>
-        <button data-overlay="clouds">Ský</button>
-      </div>
-      <iframe id="windyFrame" title="Windy kort" src="https://embed.windy.com/embed2.html?lat=65.985&lon=-23.275&detailLat=65.985&detailLon=-23.275&width=650&height=450&zoom=11&level=surface&overlay=wind&product=ecmwf&menu=&message=true&marker=true&calendar=now&pressure=true&type=map&location=coordinates&detail=true&metricWind=ms&metricTemp=%C2%B0C&radarRange=-1" loading="lazy"></iframe>
+        <a href="https://www.vedur.is/ofanflod/snjoflodaspa/" target="_blank" rel="noreferrer">Snjóflóðaspá</a>
+        <a href="https://www.vedur.is/vedur/spar/textaspar/vestfirdir/" target="_blank" rel="noreferrer">Textaspá Vestfjarða</a>
+        <a href="https://umferdin.is" target="_blank" rel="noreferrer">Umferðin.is</a>
+      </aside>
     </section>
   </main>
 
   <footer>
-    <p>Gögn frá Veðurstofu Íslands, Windy Stations og Windy korti. Endurhlaðið sjálfkrafa á 10 mínútna fresti.</p>
+    <p>Gögn frá Veðurstofu Íslands, Windy og Windy korti. Endurhlaðið sjálfkrafa á 10 mínútna fresti.</p>
   </footer>
 
   <script src="app.js"></script>

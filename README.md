@@ -1,12 +1,19 @@
-# Skíðaveður Ísafjarðarbæjar v10 hotfix
+# Skíðaveður Ísafjarðarbæjar v11
 
-Hotfix fyrir mælingar:
-- Veðurstofu-mælingar eru sóttar fyrst með `hour/latest`, svo prófar kerfið 10 mín. endpoint sem fallback.
-- Windy PWS bilun stoppar ekki lengur Veðurstofu-töfluna.
-- Staða sést efst: `Veðurstofan OK/bíður` og `Windy PWS OK/bíður`.
+Static vefur fyrir Netlify.
 
-Prófun eftir deploy:
+## Netlify
+- Build command: tómt
+- Publish directory: `.`
+
+## Windy
+Windy kortið notar Map Forecast / embed. Windy PWS mælingar nota Stations API. Ef PWS mælingar birtast ekki skaltu setja sérstakan lykil í Netlify:
+
+`WINDY_STATIONS_API_KEY=...`
+
+Ef þú ert bara með Map Forecast lykil má hann vera sem `WINDY_API_KEY`, en hann dugar ekki alltaf fyrir PWS/station observations.
+
+## Prófanir
 - `/.netlify/functions/weather?kind=latest`
 - `/.netlify/functions/windy-stations`
-
-Ath: Windy Map Forecast API lykillinn virkar fyrir kort/forecast layers, en PWS/station gögn geta þurft aðra Stations/PWS þjónustu. Þess vegna er Windy gert mjúklega þannig að það brýtur ekki mælaborðið.
+- `/.netlify/functions/warnings`
