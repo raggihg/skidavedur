@@ -8,81 +8,110 @@
 </head>
 <body>
   <header class="hero">
-    <div class="hero__bg"></div>
-    <nav class="topbar">
-      <div class="brand">
-        <span class="logo">⛷️</span>
-        <div><strong>Skíðaveður</strong><small>Ísafjarðarbær</small></div>
-      </div>
-      <div id="updated" class="updated">Sæki gögn…</div>
-    </nav>
-    <section class="hero__content">
-      <div>
-        <p class="eyebrow">Tungudalur · Seljalandsdalur · Þverfjall</p>
-        <h1>Veðurmælaborð fyrir skíðasvæðin</h1>
-        <p class="lead">Næsti sólarhringur, lifandi mælingar, þróun síðustu 24 klst. og viðvaranir fyrir norðanverða Vestfirði.</p>
-      </div>
-      <div class="hero-card" id="skiScore">
-        <span class="score-label">Skíðaskilyrði núna</span>
-        <strong>—</strong>
-        <small>metið út frá vindi, hita og úrkomu</small>
-      </div>
-    </section>
+    <div>
+      <p class="eyebrow">Skíðasvæði Ísafjarðarbæjar</p>
+      <h1>Skíðaveður</h1>
+      <p class="lead">Live mælingar, 24 klst. spá, þróun síðasta sólarhrings, Windy stöðvar og viðvaranir fyrir norðanverða Vestfirði.</p>
+    </div>
+    <div class="status-card">
+      <span id="systemStatus" class="pill">Sæki gögn…</span>
+      <strong id="nowClock">--:--</strong>
+      <small>staðartími</small>
+    </div>
   </header>
 
-  <main>
-    <section id="stationCards"></section>
-
-    <section class="panel warnings">
-      <div class="panel-head">
-        <div><p class="eyebrow">Vöktun</p><h2>Viðvaranir · norðanverðir Vestfirðir</h2></div>
-        <a class="button" href="https://www.vedur.is/vidvaranir" target="_blank" rel="noopener">Opna hjá Veðurstofu</a>
+  <main class="shell">
+    <section class="section-head">
+      <div>
+        <h2>Lifandi mælingar</h2>
+        <p>Veðurstofan + Windy PWS. Vindörvar sýna hvert vindurinn fer.</p>
       </div>
-      <div id="warningsBox" class="warning-list"><div class="skeleton"></div></div>
+      <button id="refreshBtn">Uppfæra</button>
     </section>
 
-    <section class="panel forecast-panel">
-      <div class="panel-head">
-        <div><p class="eyebrow">Nákvæm spá</p><h2>Næstu 24 klukkustundir</h2></div>
-        <div class="segmented"><button class="active" data-forecast="table">Tafla</button><button data-forecast="cards">Spjöld</button></div>
+    <section class="card table-card">
+      <div class="table-wrap">
+        <table id="liveTable">
+          <thead>
+            <tr>
+              <th>Staður</th>
+              <th>Uppfært</th>
+              <th>Hiti</th>
+              <th>Vindur</th>
+              <th>Hviður</th>
+              <th>Vindátt</th>
+              <th>Úrkoma</th>
+              <th>Raki</th>
+              <th>Þrýstingur</th>
+            </tr>
+          </thead>
+          <tbody id="liveBody">
+            <tr><td colspan="9" class="muted">Sæki mælingar…</td></tr>
+          </tbody>
+        </table>
       </div>
-      <div id="hourlyForecast" class="hourly"><div class="skeleton tall"></div></div>
     </section>
 
-    <section class="panel trend-panel">
-      <div class="panel-head">
-        <div><p class="eyebrow">Mælingar</p><h2>Þróun síðustu 24 klst.</h2></div>
-        <span class="muted">hiti · vindur · hviður</span>
-      </div>
-      <div id="trendSummary" class="trend-summary"></div>
-      <div class="chart-wrap"><canvas id="trendChart" width="1200" height="420"></canvas></div>
+    <section class="grid two">
+      <article class="card">
+        <div class="card-title">
+          <h2>Næstu 24 klst.</h2>
+          <span class="tag">klukkustundaspá</span>
+        </div>
+        <div id="hourlyForecast" class="hourly-strip"></div>
+      </article>
+
+      <article class="card">
+        <div class="card-title">
+          <h2>Þróun síðustu 24 klst.</h2>
+          <span class="tag">mælingar</span>
+        </div>
+        <canvas id="trendChart" height="180"></canvas>
+        <p id="trendNote" class="muted small">Sæki söguleg gögn…</p>
+      </article>
     </section>
 
-    <section class="two-col">
-      <section class="panel text-forecast">
-        <div class="panel-head">
-          <div><p class="eyebrow">Textaspá</p><h2>Vestfirðir</h2></div>
-          <a class="button" href="https://www.vedur.is/vedur/spar/stadaspar/vestfirdir/djupid/" target="_blank" rel="noopener">Opna textaspá</a>
+    <section class="grid two">
+      <article class="card warning-card">
+        <div class="card-title">
+          <h2>Viðvaranir</h2>
+          <span class="tag danger">Vestfirðir</span>
         </div>
-        <div class="notice">
-          <strong>Textaspáin er sett sem öruggur hlekkur í stað iframe.</strong>
-          <p>Iframe frá Veðurstofu getur verið óstöðugt á Netlify eða í farsímum. Þess vegna er textaspáin aðgengileg með hnappi, en mælaborðið sækir töluleg gögn beint þar sem það er hægt.</p>
-        </div>
-      </section>
+        <div id="warnings">Sæki viðvaranir…</div>
+      </article>
 
-      <section class="panel links">
-        <div class="panel-head"><div><p class="eyebrow">Kort og öryggi</p><h2>Flýtileiðir</h2></div></div>
-        <div class="link-grid">
-          <a href="https://www.windy.com/?66.074,-23.126,11" target="_blank" rel="noopener">Windy · Ísafjörður</a>
-          <a href="https://www.vedur.is/ofanflod/snjoflodaspa/" target="_blank" rel="noopener">Snjóflóðaspá</a>
-          <a href="https://umferdin.is/" target="_blank" rel="noopener">Færð og vegir</a>
-          <a href="https://www.vedur.is/vedur/spar/stadaspar/vestfirdir/djupid/" target="_blank" rel="noopener">Djúpið · spá</a>
+      <article class="card text-forecast">
+        <div class="card-title">
+          <h2>Textaspá</h2>
+          <span class="tag">Veðurstofan</span>
         </div>
-      </section>
+        <p>Textaspáin er opnuð beint hjá Veðurstofunni þar sem hún er ekki stöðugt aðgengileg sem hreint JSON fyrir static vef.</p>
+        <div class="button-row">
+          <a class="button" href="https://www.vedur.is/vedur/spar/textaspar/vestfirdir/" target="_blank" rel="noreferrer">Opna Vestfjarðaspá</a>
+          <a class="button secondary" href="https://www.vedur.is/ofanflod/snjoflodaspa/" target="_blank" rel="noreferrer">Snjóflóðaspá</a>
+        </div>
+      </article>
+    </section>
+
+    <section class="card">
+      <div class="card-title">
+        <h2>Windy kort</h2>
+        <span class="tag">vindur / úrkoma / ský</span>
+      </div>
+      <div class="windy-tabs">
+        <button data-overlay="wind" class="active">Vindur</button>
+        <button data-overlay="rain">Úrkoma</button>
+        <button data-overlay="temp">Hiti</button>
+        <button data-overlay="clouds">Ský</button>
+      </div>
+      <iframe id="windyFrame" title="Windy kort" src="https://embed.windy.com/embed2.html?lat=65.985&lon=-23.275&detailLat=65.985&detailLon=-23.275&width=650&height=450&zoom=11&level=surface&overlay=wind&product=ecmwf&menu=&message=true&marker=true&calendar=now&pressure=true&type=map&location=coordinates&detail=true&metricWind=ms&metricTemp=%C2%B0C&radarRange=-1" loading="lazy"></iframe>
     </section>
   </main>
 
-  <footer>Gögn: Veðurstofa Íslands þar sem þau eru aðgengileg. Mælaborðið sýnir fallback þegar þjónusta svarar ekki.</footer>
+  <footer>
+    <p>Gögn frá Veðurstofu Íslands, Windy Stations og Windy korti. Endurhlaðið sjálfkrafa á 10 mínútna fresti.</p>
+  </footer>
+
   <script src="app.js"></script>
 </body>
 </html>
