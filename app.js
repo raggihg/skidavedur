@@ -4,7 +4,7 @@ const STATIONS = [
   { id: '2636', name: 'Þverfjall', short: 'Þverfjall' }
 ];
 const PLACE = { lat: 66.074, lon: -23.126, name: 'Skíðasvæði Ísafjarðarbæjar' };
-const API = 'https://api.vedur.is/weather';
+const API = '/.netlify/functions/weather';
 const fmtTime = d => new Intl.DateTimeFormat('is-IS',{hour:'2-digit',minute:'2-digit',weekday:'short'}).format(new Date(d));
 const fmtShort = d => new Intl.DateTimeFormat('is-IS',{hour:'2-digit',minute:'2-digit'}).format(new Date(d));
 
@@ -13,57 +13,50 @@ function windArrow(deg){ if(deg==null||Number.isNaN(+deg)) return '↗'; return 
 function valueOf(row, keys){ for(const k of keys){ if(row && row[k] != null) return row[k]; if(row?.parameters?.[k]?.value != null) return row.parameters[k].value; if(row?.measurements?.[k] != null) return row.measurements[k]; } return null; }
 async function fetchJson(url){ const r=await fetch(url,{cache:'no-store'}); if(!r.ok) throw new Error(r.status+' '+url); return r.json(); }
 
+function unwrap(payload){ return payload && payload.data !== undefined ? payload.data : payload; }
 async function getLatestObs(){
-  const urls = [
-    `${API}/observations/aws/hour/latest?stations=${STATIONS.map(s=>s.id).join(',')}&parameters=basic`,
-    `${API}/observations/aws/hour/latest?station_ids=${STATIONS.map(s=>s.id).join(',')}&parameters=basic`,
-    `${API}/observations/aws/hour/latest?stations=${STATIONS.map(s=>s.id).join(',')}`
-  ];
-  for(const url of urls){ try { return await fetchJson(url); } catch(e){} }
-  throw new Error('Náði ekki nýjustu mælingum');
+  const payload = await fetchJson(`${API}?kind=latest`);
+  if(!payload?.ok) throw new Error(payload?.error || 'Náði ekki nýjustu mælingum');
+  return unwrap(payload);
 }
 async function getHistory(){
-  const now = new Date(); const from = new Date(now.getTime()-24*3600e3);
-  const start = from.toISOString(); const end = now.toISOString();
-  const urls = [
-    `${API}/observations/aws/hour?stations=${STATIONS.map(s=>s.id).join(',')}&start_time=${encodeURIComponent(start)}&end_time=${encodeURIComponent(end)}&parameters=basic`,
-    `${API}/observations/aws/hour?station_ids=${STATIONS.map(s=>s.id).join(',')}&time_from=${encodeURIComponent(start)}&time_to=${encodeURIComponent(end)}&parameters=basic`,
-    `${API}/observations/aws/hour?stations=${STATIONS.map(s=>s.id).join(',')}&from=${encodeURIComponent(start)}&to=${encodeURIComponent(end)}`
-  ];
-  for(const url of urls){ try { return await fetchJson(url); } catch(e){} }
-  return null;
+  const payload = await fetchJson(`${API}?kind=history`);
+  if(!payload?.ok) return null;
+  return unwrap(payload);
 }
 async function getForecast(){
-  // Veðurstofu API first. Fallback: api.met.no locationforecast, which is CORS-friendly and hourly.
-  const urls = [
-    `${API}/forecasts/point?lat=${PLACE.lat}&lon=${PLACE.lon}`,
-    `${API}/forecast/point?lat=${PLACE.lat}&lon=${PLACE.lon}`,
-    `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${PLACE.lat}&lon=${PLACE.lon}`
-  ];
-  for(const url of urls){ try { return await fetchJson(url); } catch(e){} }
-  throw new Error('Náði ekki klukkustundaspá');
+  const payload = await fetchJson(`${API}?kind=forecast`);
+  if(!payload?.ok) throw new Error(payload?.error || 'Náði ekki klukkustundaspá');
+  return unwrap(payload);
 }
 async function getWarnings(){
-  const urls = [
-    'https://api.vedur.is/cap/1.0/alerts/active?lang=is',
-    'https://api.vedur.is/cap/1.0/alerts/active',
-    'https://api.vedur.is/cap/v1/alerts/active?lang=is'
-  ];
-  for(const url of urls){ try { return await fetchJson(url); } catch(e){} }
-  return null;
+  const payload = await fetchJson(`${API}?kind=warnings`);
+  if(!payload?.ok) return null;
+  return unwrap(payload);
 }
 function flattenObs(data){
-  const arr = Array.isArray(data) ? data : data?.results || data?.data || data?.observations || data?.items || [];
-  return arr.flatMap(x => Array.isArray(x.observations) ? x.observations.map(o=>({...o, station_id:x.station_id||x.id||x.station})) : [x]);
+  const arr = Array.isArray(data) ? data : data?.results || data?.data || data?.observations || data?.items || data?.features || [];
+  return arr.flatMap(x => {
+    if(Array.isArray(x.observations)) return x.observations.map(o=>({...o, station_id:x.station_id||x.id||x.station||x.stationId}));
+    if(Array.isArray(x.data)) return x.data.map(o=>({...o, station_id:x.station_id||x.id||x.station||x.stationId}));
+    return [x];
+  });
 }
+function stationKey(row){
+  return String(row?.station_id || row?.station || row?.stationId || row?.id || row?.properties?.station_id || row?.station?.id || '');
+}
+function findStationRow(arr, id){
+  return arr.find(x => stationKey(x) === id) || arr.find(x => JSON.stringify(x).includes(id)) || {};
+}
+
 function renderStations(data){
   const arr = flattenObs(data);
   document.getElementById('stationCards').innerHTML = STATIONS.map(st=>{
-    const row = arr.find(x => String(x.station_id||x.station||x.id||x.stationId) === st.id) || {};
-    const t = valueOf(row,['T','temp','temperature','air_temperature']);
-    const f = valueOf(row,['F','wind_speed','windSpeed','ff']);
-    const fx = valueOf(row,['FX','gust','wind_gust','max_wind_speed']);
-    const d = valueOf(row,['D','wind_direction','windDirection','dd']);
+    const row = findStationRow(arr, st.id);
+    const t = valueOf(row,['T','t','temp','temperature','air_temperature']);
+    const f = valueOf(row,['F','f','wind_speed','windSpeed','ff','wind']);
+    const fx = valueOf(row,['FX','fx','FG','gust','wind_gust','max_wind_speed']);
+    const d = valueOf(row,['D','d','wind_direction','windDirection','dd']);
     return `<article class="card"><h3>${st.name}</h3><span class="muted">Stöð ${st.id}</span><div class="metric-row"><div class="metric"><span>Hiti</span><strong>${t??'—'}°</strong></div><div class="metric"><span>Vindur</span><strong>${f??'—'} m/s</strong></div></div><div class="metric-row"><div><span class="wind-arrow" style="transform:rotate(${d||0}deg)">${windArrow(d)}</span><b>${degToCompass(d)}</b> <span class="muted">${d??'—'}°</span></div><div><span class="muted">Hviða</span> <b>${fx??'—'} m/s</b></div></div></article>`;
   }).join('');
   const winds = arr.map(r=>+valueOf(r,['F','wind_speed','windSpeed','ff'])).filter(Number.isFinite);
@@ -91,7 +84,7 @@ function renderForecast(rows){
     el.innerHTML=`<table class="hourly-table"><thead><tr><th>Tími</th><th>Hiti</th><th>Vindur</th><th>Hviða</th><th>Átt</th><th>Úrkoma</th><th>Lýsing</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${fmtTime(r.time)}</b></td><td>${r.temp??'—'}°C</td><td>${r.wind??'—'} m/s</td><td>${r.gust??'—'} m/s</td><td><span class="wind-arrow" style="transform:rotate(${r.dir||0}deg)">↑</span>${degToCompass(r.dir)} ${r.dir?Math.round(r.dir)+'°':''}</td><td>${r.precip??0} mm</td><td>${String(r.summary||'').replaceAll('_',' ')}</td></tr>`).join('')}</tbody></table>`;
   }
 }
-function flattenHistory(data){ return flattenObs(data).map(r=>({station:String(r.station_id||r.station||r.id||r.stationId), time:r.time||r.date||r.valid_time||r.observation_time, temp:+valueOf(r,['T','temp','temperature','air_temperature']), wind:+valueOf(r,['F','wind_speed','windSpeed','ff']), gust:+valueOf(r,['FX','gust','wind_gust','max_wind_speed'])})).filter(r=>r.time); }
+function flattenHistory(data){ return flattenObs(data).map(r=>({station:stationKey(r), time:r.time||r.date||r.valid_time||r.observation_time||r.timestamp, temp:+valueOf(r,['T','t','temp','temperature','air_temperature']), wind:+valueOf(r,['F','f','wind_speed','windSpeed','ff','wind']), gust:+valueOf(r,['FX','fx','FG','gust','wind_gust','max_wind_speed'])})).filter(r=>r.time); }
 function renderTrend(data){
   const rows = flattenHistory(data);
   const el = document.getElementById('trendSummary');
@@ -116,7 +109,7 @@ function renderWarnings(data){
 document.querySelectorAll('[data-forecast]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-forecast]').forEach(x=>x.classList.remove('active')); b.classList.add('active'); forecastMode=b.dataset.forecast; renderForecast(lastForecast);});
 (async function init(){
   document.getElementById('updated').textContent='Uppfært: '+new Intl.DateTimeFormat('is-IS',{dateStyle:'medium',timeStyle:'short'}).format(new Date());
-  try{ renderStations(await getLatestObs()); }catch(e){ document.getElementById('stationCards').innerHTML='<div class="card warning warn">Náði ekki live mælingum frá Veðurstofu núna.</div>'; }
+  try{ renderStations(await getLatestObs()); }catch(e){ console.error(e); document.getElementById('stationCards').innerHTML='<div class="card warning warn"><b>Náði ekki live mælingum frá Veðurstofu núna.</b><br><span class="muted">Netlify Function/proxy sér um að sækja gögnin. Prófaðu að endurhlaða síðuna eða skoða Function log á Netlify.</span></div>'; }
   try{ renderForecast(parseForecast(await getForecast())); }catch(e){ renderForecast([]); }
   try{ renderTrend(await getHistory()); }catch(e){ renderTrend(null); }
   try{ renderWarnings(await getWarnings()); }catch(e){ renderWarnings(null); }
