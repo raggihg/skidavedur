@@ -31,8 +31,8 @@ function findStationPayload(listPayload, st){
   return arr.find(x => String(first(x.id, x.stationId, x.station_id, x.pwsId, x.name)).includes(st.shortId));
 }
 exports.handler = async () => {
-  const key = process.env.WINDY_STATIONS_API_KEY || process.env.WINDY_API_KEY;
-  if (!key) return { statusCode: 200, headers, body: JSON.stringify({ ok:false, error:'WINDY_STATIONS_API_KEY vantar í Netlify Environment variables', rows: STATIONS.map(s=>({...s, source:'Windy PWS'})) }) };
+  const key = process.env.vedur_api || process.env.VEDUR_API || process.env.WINDY_STATIONS_API_KEY || process.env.WINDY_API_KEY;
+  if (!key) return { statusCode: 200, headers, body: JSON.stringify({ ok:false, error:'vedur_api vantar í Netlify Environment variables', rows: STATIONS.map(s=>({...s, source:'Windy PWS'})) }) };
   const attempts = [];
   try {
     const list = await fetchJson(`https://stations.windy.com/api/v2/pws?key=${encodeURIComponent(key)}`);

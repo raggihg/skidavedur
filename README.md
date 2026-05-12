@@ -17,3 +17,10 @@ Ef þú ert bara með Map Forecast lykil má hann vera sem `WINDY_API_KEY`, en h
 - `/.netlify/functions/weather?kind=latest`
 - `/.netlify/functions/windy-stations`
 - `/.netlify/functions/warnings`
+
+
+## v12
+- Windy Stations API lykill lesinn úr Netlify breytunni `vedur_api`.
+- Veðurspá næsta sólarhrings er sýnd á heilum tímum.
+- Veðurtákn bætt við spá: sól, ský, rigning, snjókoma o.fl.
+- Þróun síðustu 24 klst. áfram sýnd sem sérstakt graf og undirbúin fyrir frekari þróun.

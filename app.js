@@ -11,6 +11,8 @@ const WINDY_STATIONS = [
 const labels = ['Staður','Uppfært','Hiti','Vindur','Hviður','Átt','Úrkoma','Raki','Þrýst.'];
 const $ = (id) => document.getElementById(id);
 const fmtTime = (d) => d ? new Intl.DateTimeFormat('is-IS',{hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(d)) : '—';
+const fmtHour = (d) => d ? new Intl.DateTimeFormat('is-IS',{hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(d)) : '—';
+function roundUpToHour(ms=Date.now()){ const d=new Date(ms); d.setMinutes(0,0,0); if(d.getTime()<ms) d.setHours(d.getHours()+1); return d.getTime(); }
 const fmt = (v, unit='') => Number.isFinite(Number(v)) ? `${Number(v).toFixed(unit==='°C'?1:0)}${unit}` : '—';
 function windArrowToward(degFrom){
   if(!Number.isFinite(Number(degFrom))) return '—';
@@ -58,18 +60,73 @@ function renderSkiSummary(rows){
     <div class="summary-line"><span>Kaldast</span><b>${cold == null ? '—' : fmt(cold,'°C')}</b></div>
     <div class="summary-line"><span>Staða</span><b>${status}</b></div>`;
 }
-function renderHourly(data){
-  const hours = Array.isArray(data?.hours) ? data.hours : makeDemoHours();
-  $('hourlyForecast').innerHTML = hours.slice(0,24).map(h => `<div class="hour"><div class="time">${fmtTime(h.time)}</div><strong>${fmt(h.temp,'°C')}</strong><div class="wind">${windArrowToward(h.dir)} ${fmt(h.wind,' m/s')}</div><div class="meta">${fmt(h.precip,' mm')} úrk.</div></div>`).join('');
+function chooseWeatherIcon(h){
+  const text = String(h.symbol || h.weather || h.condition || h.summary || '').toLowerCase();
+  const precip = Number(h.precip ?? h.precipitation ?? h.rain ?? 0) || 0;
+  const snow = Number(h.snow ?? h.snowfall ?? 0) || 0;
+  const temp = Number(h.temp ?? h.temperature);
+  const cloud = Number(h.cloud ?? h.clouds ?? h.cloudCover);
+  if (text.includes('thunder') || text.includes('þrum')) return {icon:'⛈️', label:'Þrumur'};
+  if (text.includes('snow') || text.includes('snjó') || snow > 0 || (precip > 0.1 && temp <= 1)) return {icon:'🌨️', label:'Snjókoma'};
+  if (text.includes('rain') || text.includes('rign') || precip > 0.1) return {icon:'🌧️', label:'Rigning'};
+  if (text.includes('fog') || text.includes('mist') || text.includes('þoka')) return {icon:'🌫️', label:'Þoka'};
+  if (text.includes('cloud') || text.includes('ský') || cloud >= 70) return {icon:'☁️', label:'Skýjað'};
+  if (cloud >= 35) return {icon:'⛅', label:'Léttskýjað'};
+  return {icon:'☀️', label:'Bjart'};
 }
-function makeDemoHours(){return Array.from({length:24},(_,i)=>({time:Date.now()+i*3600000,temp:-2+Math.sin(i/3)*2,wind:4+Math.cos(i/4)*2,dir:220+i*5,precip:i%5===0?.4:0}));}
+function flattenForecast(payload){
+  if (Array.isArray(payload?.hours)) return payload.hours;
+  const out=[];
+  function walk(x){
+    if(!x) return;
+    if(Array.isArray(x)) return x.forEach(walk);
+    if(typeof x !== 'object') return;
+    const time=x.time || x.date || x.timestamp || x.valid_time || x.validTime || x.forecastTime;
+    const temp=x.T ?? x.t ?? x.temp ?? x.temperature ?? x.air_temperature;
+    const wind=x.F ?? x.f ?? x.wind ?? x.wind_speed ?? x.windSpeed ?? x.wind_speed_10m;
+    const dir=x.D ?? x.d ?? x.dir ?? x.wind_direction ?? x.windDirection ?? x.wind_dir;
+    const precip=x.R ?? x.r ?? x.precip ?? x.precipitation ?? x.rain ?? x.accumulated_precipitation;
+    const snow=x.S ?? x.snow ?? x.snowfall;
+    const cloud=x.N ?? x.cloud ?? x.clouds ?? x.cloudCover;
+    if(time && [temp,wind,dir,precip,snow,cloud].some(v=>v!==undefined)) out.push({time,temp,wind,dir,precip,snow,cloud,symbol:x.symbol,weather:x.weather,condition:x.condition,summary:x.summary});
+    ['hours','data','items','forecasts','timeSeries','timeseries','values'].forEach(k=>{ if(x[k]) walk(x[k]); });
+  }
+  walk(payload);
+  return out;
+}
+function normalizeHourly(data){
+  const raw = flattenForecast(data).length ? flattenForecast(data) : makeDemoHours();
+  const start = roundUpToHour();
+  const byHour = new Map();
+  raw.forEach(h=>{
+    const t = new Date(h.time).getTime();
+    if(!Number.isFinite(t)) return;
+    const d = new Date(t); d.setMinutes(0,0,0);
+    const key = d.getTime();
+    if(key >= start && !byHour.has(key)) byHour.set(key,{...h,time:key});
+  });
+  const hours=[];
+  for(let i=0;i<24;i++){
+    const key=start+i*3600000;
+    hours.push(byHour.get(key) || {time:key, missing:true});
+  }
+  return hours;
+}
+function renderHourly(data){
+  const hours = normalizeHourly(data);
+  $('hourlyForecast').innerHTML = hours.map(h => {
+    const wi = chooseWeatherIcon(h);
+    return `<div class="hour ${h.missing?'missing':''}"><div class="time">${fmtHour(h.time)}</div><div class="weather-icon" title="${wi.label}">${wi.icon}</div><strong>${fmt(h.temp,'°C')}</strong><div class="wind">${windArrowToward(h.dir)} ${fmt(h.wind,' m/s')}</div><div class="meta">${fmt(h.precip,' mm')}</div></div>`;
+  }).join('');
+}
+function makeDemoHours(){const start=roundUpToHour();return Array.from({length:24},(_,i)=>({time:start+i*3600000,temp:-2+Math.sin(i/3)*2,wind:4+Math.cos(i/4)*2,dir:220+i*5,precip:i%5===0?.4:0,cloud:i%4*25}));}
 function drawTrend(data){
   const c = $('trendChart'), ctx=c.getContext('2d'), scale=window.devicePixelRatio||1, w=c.width=c.clientWidth*scale, h=c.height=180*scale; ctx.clearRect(0,0,w,h);
   const points = Array.isArray(data?.points) ? data.points : Array.from({length:24},(_,i)=>({t:i,v:-3+Math.sin(i/4)*3}));
   const vals = points.map(p=>Number(p.v)).filter(Number.isFinite); if(!vals.length){ $('trendNote').textContent='Engin þróunargögn fundust.'; return; }
   const min=Math.min(...vals)-1,max=Math.max(...vals)+1; ctx.strokeStyle='rgba(255,255,255,.16)';ctx.lineWidth=1*scale; for(let i=0;i<4;i++){let y=h*(i+1)/5;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
   ctx.strokeStyle='#7dd3fc';ctx.lineWidth=3*scale;ctx.beginPath(); points.forEach((p,i)=>{let x=i/(points.length-1)*w,y=h-((Number(p.v)-min)/(max-min))*h; i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.stroke();
-  $('trendNote').textContent = `Hiti síðustu 24 klst. Lægst ${Math.min(...vals).toFixed(1)}°C, hæst ${Math.max(...vals).toFixed(1)}°C.`;
+  $('trendNote').textContent = `Þróun hita síðustu 24 klst. Lægst ${Math.min(...vals).toFixed(1)}°C, hæst ${Math.max(...vals).toFixed(1)}°C.`;
 }
 function renderWarnings(payload){
   const items = payload?.warnings || payload?.items || payload?.features || [];
