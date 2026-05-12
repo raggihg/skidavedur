@@ -14,6 +14,7 @@ const fmtTime = (d) => d ? new Intl.DateTimeFormat('is-IS',{hour:'2-digit',minut
 const fmtHour = (d) => d ? new Intl.DateTimeFormat('is-IS',{hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(d)) : '—';
 function roundUpToHour(ms=Date.now()){ const d=new Date(ms); d.setMinutes(0,0,0); if(d.getTime()<ms) d.setHours(d.getHours()+1); return d.getTime(); }
 const fmt = (v, unit='') => Number.isFinite(Number(v)) ? `${Number(v).toFixed(unit==='°C'?1:0)}${unit}` : '—';
+function rowHasRealData(r){ return [r.temp,r.wind,r.gust,r.dir,r.precip,r.humidity,r.pressure].some(v => Number.isFinite(Number(v)) && Number(v) !== 0) || (r.time && [r.temp,r.wind,r.gust,r.dir].some(v => Number.isFinite(Number(v)))); }
 function windArrowToward(degFrom){
   if(!Number.isFinite(Number(degFrom))) return '—';
   const toward = (Number(degFrom)+180)%360;
@@ -38,7 +39,7 @@ function normalizeWindy(payload){
 function withCell(label, html){ return `<td data-label="${label}">${html}</td>`; }
 function renderLive(rows){
   $('liveBody').innerHTML = rows.map(r => {
-    const hasData = [r.temp,r.wind,r.gust,r.dir,r.precip,r.humidity,r.pressure].some(v => Number.isFinite(Number(v)));
+    const hasData = rowHasRealData(r);
     const cells = [
       `<span class="station-name"><b>${r.name}</b><span class="station-source">${r.source}${r.error ? ' · bíður' : ''}</span></span>`,
       fmtTime(r.time), fmt(r.temp,'°C'), fmt(r.wind,' m/s'), fmt(r.gust,' m/s'), windArrowToward(r.dir), fmt(r.precip,' mm'), fmt(r.humidity,' %'), fmt(r.pressure,' hPa')
@@ -48,7 +49,7 @@ function renderLive(rows){
   renderSkiSummary(rows);
 }
 function renderSkiSummary(rows){
-  const valid = rows.filter(r => [r.temp,r.wind,r.gust].some(v => Number.isFinite(Number(v))));
+  const valid = rows.filter(rowHasRealData);
   const top = rows.find(r => r.id === '2636') || valid[0];
   const coldVals = valid.map(r => Number(r.temp)).filter(Number.isFinite);
   const gustVals = valid.map(r => Number(r.gust || r.wind)).filter(Number.isFinite);
@@ -139,7 +140,7 @@ function renderWarnings(payload){
   }).join('');
 }
 function showWindyHelp(payload, windyRows){
-  const ok = windyRows.some(r => [r.temp,r.wind,r.gust,r.dir].some(v => Number.isFinite(Number(v))));
+  const ok = windyRows.some(rowHasRealData);
   if(ok){ $('windyHelp').classList.add('hidden'); return; }
   $('windyHelp').classList.remove('hidden');
   $('windyHelp').textContent = payload?.message || payload?.error || 'Windy PWS mælingar skila ekki gögnum enn. Athugaðu hvort þú sért með Windy Stations API lykil, ekki bara Map Forecast lykil.';
@@ -159,7 +160,7 @@ async function loadAll(){
   renderLive([...imoRows, ...windyRows]); showWindyHelp(windyPayload, windyRows);
   renderHourly(forecast.status==='fulfilled'?forecast.value:null); drawTrend(trend.status==='fulfilled'?trend.value:null); renderWarnings(warn.status==='fulfilled'?warn.value:null);
   const imoOk = imoRows.some(r => [r.temp,r.wind,r.gust,r.dir].some(v => Number.isFinite(Number(v))));
-  const windyOk = windyRows.some(r => [r.temp,r.wind,r.gust,r.dir].some(v => Number.isFinite(Number(v))));
+  const windyOk = windyRows.some(rowHasRealData);
   $('latestBadge').textContent = `Uppfært ${fmtTime(Date.now())}`;
   $('systemStatus').textContent = `${imoOk ? 'Veðurstofan OK' : 'Veðurstofan bíður'} · ${windyOk ? 'Windy OK' : 'Windy bíður'}`;
 }
