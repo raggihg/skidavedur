@@ -19,6 +19,7 @@ function setClock(){ nowClock.textContent = new Intl.DateTimeFormat('is-IS',{hou
 setInterval(setClock, 1000); setClock();
 async function getJSON(url){ const r = await fetch(url); if(!r.ok) throw new Error(`${r.status} ${url}`); return r.json(); }
 function normalizeIMO(payload){
+  if (Array.isArray(payload?.rows)) return payload.rows;
   const rows = Array.isArray(payload?.stations) ? payload.stations : Array.isArray(payload) ? payload : [];
   return IMO_STATIONS.map(st => {
     const raw = rows.find(x => String(x.station_id||x.stationId||x.id||x.station) === st.id) || {};
@@ -27,19 +28,23 @@ function normalizeIMO(payload){
   });
 }
 function normalizeWindy(payload){
+  if (Array.isArray(payload?.rows)) return payload.rows;
   const map = payload?.stations || payload || {};
   return WINDY_STATIONS.map(st => {
     const raw = map[st.id] || {};
     const obs = raw.observation || raw.observations?.[0] || raw.data?.[0] || raw;
-    return { ...st, time: obs.ts || obs.time || obs.date || obs.timestamp, temp: obs.temp ?? obs.temperature, wind: obs.wind ?? obs.windSpeed ?? obs.wind_speed, gust: obs.gust ?? obs.windGust ?? obs.wind_gust, dir: obs.windDir ?? obs.windDirection ?? obs.wind_direction, precip: obs.precip ?? obs.precipitation, humidity: obs.humidity ?? obs.rh, pressure: obs.pressure ?? obs.mbar };
+    return { ...st, time: obs.ts || obs.time || obs.date || obs.timestamp, temp: obs.temp ?? obs.temperature, wind: obs.wind ?? obs.windSpeed ?? obs.wind_speed, gust: obs.gust ?? obs.windGust ?? obs.wind_gust, dir: obs.windDir ?? obs.windDirection ?? obs.wind_direction, precip: obs.precip ?? obs.precipitation, humidity: obs.humidity ?? obs.rh, pressure: obs.pressure ?? obs.mbar, error: raw.error || payload?.message };
   });
 }
 function renderLive(rows){
-  liveBody.innerHTML = rows.map(r => `<tr>
-    <td><span class="station-name"><b>${r.name}</b><span class="station-source">${r.source}</span></span></td>
-    <td>${fmtTime(r.time)}</td><td>${fmt(r.temp,'°C')}</td><td>${fmt(r.wind,' m/s')}</td><td>${fmt(r.gust,' m/s')}</td>
-    <td>${windArrowToward(r.dir)}</td><td>${fmt(r.precip,' mm')}</td><td>${fmt(r.humidity,' %')}</td><td>${fmt(r.pressure,' hPa')}</td>
-  </tr>`).join('');
+  liveBody.innerHTML = rows.map(r => {
+    const hasData = [r.temp,r.wind,r.gust,r.dir,r.precip,r.humidity,r.pressure].some(v => Number.isFinite(Number(v)));
+    return `<tr class="${hasData ? '' : 'no-data'}">
+      <td><span class="station-name"><b>${r.name}</b><span class="station-source">${r.source}${r.error ? ' · bíður' : ''}</span></span></td>
+      <td>${fmtTime(r.time)}</td><td>${fmt(r.temp,'°C')}</td><td>${fmt(r.wind,' m/s')}</td><td>${fmt(r.gust,' m/s')}</td>
+      <td>${windArrowToward(r.dir)}</td><td>${fmt(r.precip,' mm')}</td><td>${fmt(r.humidity,' %')}</td><td>${fmt(r.pressure,' hPa')}</td>
+    </tr>`;
+  }).join('');
 }
 function renderHourly(data){
   const hours = data?.hours || makeDemoHours();
@@ -63,10 +68,15 @@ async function loadAll(){
     getJSON('/.netlify/functions/weather?kind=history24'),
     getJSON('/.netlify/functions/warnings')
   ]);
-  const rows=[...(imo.status==='fulfilled'?normalizeIMO(imo.value):IMO_STATIONS.map(s=>({...s}))),...(windy.status==='fulfilled'?normalizeWindy(windy.value):WINDY_STATIONS.map(s=>({...s})) )];
+  const imoRows = imo.status==='fulfilled'?normalizeIMO(imo.value):IMO_STATIONS.map(s=>({...s, source:'Veðurstofan', error:'IMO kall mistókst'}));
+  const windyRows = windy.status==='fulfilled'?normalizeWindy(windy.value):WINDY_STATIONS.map(s=>({...s, source:'Windy PWS', error:'Windy kall mistókst'}));
+  const rows=[...imoRows, ...windyRows];
   renderLive(rows); renderHourly(forecast.status==='fulfilled'?forecast.value:null); drawTrend(trend.status==='fulfilled'?trend.value:null); renderWarnings(warn.status==='fulfilled'?warn.value:null);
-  systemStatus.textContent = 'Uppfært ' + fmtTime(Date.now());
+  const imoOk = imo.status==='fulfilled' && (imo.value?.ok !== false) && imoRows.some(r => [r.temp,r.wind,r.gust,r.dir].some(v => Number.isFinite(Number(v))));
+  const windyOk = windy.status==='fulfilled' && (windy.value?.ok !== false) && windyRows.some(r => [r.temp,r.wind,r.gust,r.dir].some(v => Number.isFinite(Number(v))));
+  systemStatus.textContent = `${imoOk ? 'Veðurstofan OK' : 'Veðurstofan bíður'} · ${windyOk ? 'Windy OK' : 'Windy PWS bíður'} · uppfært ${fmtTime(Date.now())}`;
 }
+window.addEventListener('error', e => { systemStatus.textContent = 'Villa í vefkóða: ' + e.message; });
 function renderWarnings(payload){
   const items = payload?.warnings || payload?.items || [];
   if(!items.length){ warnings.innerHTML = '<div class="warning-item">Engar virkar viðvaranir fundust í sjálfvirkri vöktun. Athugaðu samt Veðurstofuna fyrir ferð.</div>'; return; }
