@@ -9,6 +9,7 @@ const fmtTime = d => new Intl.DateTimeFormat('is-IS',{hour:'2-digit',minute:'2-d
 const fmtShort = d => new Intl.DateTimeFormat('is-IS',{hour:'2-digit',minute:'2-digit'}).format(new Date(d));
 
 function degToCompass(deg){ if(deg==null||Number.isNaN(+deg)) return '—'; const dirs=['N','NNA','NA','ANA','A','ASA','SA','SSA','S','SSV','SV','VSV','V','VNV','NV','NNV']; return dirs[Math.round((+deg%360)/22.5)%16]; }
+function windTravelDeg(deg){ if(deg==null||Number.isNaN(+deg)) return null; return ((+deg + 180) % 360); }
 function windArrow(deg){ if(deg==null||Number.isNaN(+deg)) return '↗'; return '↑'; }
 function valueOf(row, keys){ for(const k of keys){ if(row && row[k] != null) return row[k]; if(row?.parameters?.[k]?.value != null) return row.parameters[k].value; if(row?.measurements?.[k] != null) return row.measurements[k]; } return null; }
 async function fetchJson(url){ const r=await fetch(url,{cache:'no-store'}); if(!r.ok) throw new Error(r.status+' '+url); return r.json(); }
@@ -51,14 +52,50 @@ function findStationRow(arr, id){
 
 function renderStations(data){
   const arr = flattenObs(data);
-  document.getElementById('stationCards').innerHTML = STATIONS.map(st=>{
+  const rows = STATIONS.map(st=>{
     const row = findStationRow(arr, st.id);
     const t = valueOf(row,['T','t','temp','temperature','air_temperature']);
     const f = valueOf(row,['F','f','wind_speed','windSpeed','ff','wind']);
     const fx = valueOf(row,['FX','fx','FG','gust','wind_gust','max_wind_speed']);
     const d = valueOf(row,['D','d','wind_direction','windDirection','dd']);
-    return `<article class="card"><h3>${st.name}</h3><span class="muted">Stöð ${st.id}</span><div class="metric-row"><div class="metric"><span>Hiti</span><strong>${t??'—'}°</strong></div><div class="metric"><span>Vindur</span><strong>${f??'—'} m/s</strong></div></div><div class="metric-row"><div><span class="wind-arrow" style="transform:rotate(${d||0}deg)">${windArrow(d)}</span><b>${degToCompass(d)}</b> <span class="muted">${d??'—'}°</span></div><div><span class="muted">Hviða</span> <b>${fx??'—'} m/s</b></div></div></article>`;
-  }).join('');
+    const travel = windTravelDeg(d);
+    const time = row.time || row.date || row.valid_time || row.observation_time || row.timestamp;
+    return { st, t, f, fx, d, travel, time };
+  });
+
+  document.getElementById('stationCards').innerHTML = `
+    <section class="panel live-panel">
+      <div class="panel-head">
+        <div><p class="eyebrow">Lifandi mælingar</p><h2>Veðurstöðvar</h2></div>
+        <span class="muted">vindör sýnir hvert vindurinn fer</span>
+      </div>
+      <div class="station-table-wrap">
+        <table class="station-table">
+          <thead>
+            <tr>
+              <th>Staður</th>
+              <th>Hiti</th>
+              <th>Vindur</th>
+              <th>Hviða</th>
+              <th>Vindátt</th>
+              <th>Síðast mælt</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(({st,t,f,fx,d,travel,time})=>`
+              <tr>
+                <td><strong>${st.short}</strong><span class="muted station-id">Stöð ${st.id}</span></td>
+                <td class="big-cell">${t??'—'}°C</td>
+                <td>${f??'—'} m/s</td>
+                <td>${fx??'—'} m/s</td>
+                <td><span class="wind-arrow" style="transform:rotate(${travel??0}deg)">${windArrow(d)}</span><b>${degToCompass(travel)}</b></td>
+                <td class="muted">${time ? fmtShort(time) : '—'}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </section>`;
+
   const winds = arr.map(r=>+valueOf(r,['F','wind_speed','windSpeed','ff'])).filter(Number.isFinite);
   const temps = arr.map(r=>+valueOf(r,['T','temp','temperature','air_temperature'])).filter(Number.isFinite);
   let score = 72; if(Math.max(...winds,0)>15) score-=35; else if(Math.max(...winds,0)>10) score-=18; if(Math.max(...temps,0)>3) score-=12; if(Math.min(...temps,99)<-10) score-=8;
@@ -79,9 +116,9 @@ function renderForecast(rows){
   const el=document.getElementById('hourlyForecast');
   if(!rows.length){ el.innerHTML='<div class="warning warn">Náði ekki að birta klukkustundaspá. Prófaðu aftur síðar.</div>'; return; }
   if(forecastMode==='cards'){
-    el.innerHTML=`<div class="hour-cards">${rows.map(r=>`<div class="hour-card"><span class="muted">${fmtShort(r.time)}</span><strong>${Math.round(r.temp??0)}°</strong><div><span class="wind-arrow" style="transform:rotate(${r.dir||0}deg)">↑</span>${Math.round(r.wind??0)} m/s</div><small>${r.precip??0} mm</small></div>`).join('')}</div>`;
+    el.innerHTML=`<div class="hour-cards">${rows.map(r=>`<div class="hour-card"><span class="muted">${fmtShort(r.time)}</span><strong>${Math.round(r.temp??0)}°</strong><div><span class="wind-arrow" style="transform:rotate(${windTravelDeg(r.dir)??0}deg)">↑</span>${Math.round(r.wind??0)} m/s</div><small>${r.precip??0} mm</small></div>`).join('')}</div>`;
   } else {
-    el.innerHTML=`<table class="hourly-table"><thead><tr><th>Tími</th><th>Hiti</th><th>Vindur</th><th>Hviða</th><th>Átt</th><th>Úrkoma</th><th>Lýsing</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${fmtTime(r.time)}</b></td><td>${r.temp??'—'}°C</td><td>${r.wind??'—'} m/s</td><td>${r.gust??'—'} m/s</td><td><span class="wind-arrow" style="transform:rotate(${r.dir||0}deg)">↑</span>${degToCompass(r.dir)} ${r.dir?Math.round(r.dir)+'°':''}</td><td>${r.precip??0} mm</td><td>${String(r.summary||'').replaceAll('_',' ')}</td></tr>`).join('')}</tbody></table>`;
+    el.innerHTML=`<table class="hourly-table"><thead><tr><th>Tími</th><th>Hiti</th><th>Vindur</th><th>Hviða</th><th>Átt</th><th>Úrkoma</th><th>Lýsing</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${fmtTime(r.time)}</b></td><td>${r.temp??'—'}°C</td><td>${r.wind??'—'} m/s</td><td>${r.gust??'—'} m/s</td><td><span class="wind-arrow" style="transform:rotate(${windTravelDeg(r.dir)??0}deg)">↑</span>${degToCompass(windTravelDeg(r.dir))}</td><td>${r.precip??0} mm</td><td>${String(r.summary||'').replaceAll('_',' ')}</td></tr>`).join('')}</tbody></table>`;
   }
 }
 function flattenHistory(data){ return flattenObs(data).map(r=>({station:stationKey(r), time:r.time||r.date||r.valid_time||r.observation_time||r.timestamp, temp:+valueOf(r,['T','t','temp','temperature','air_temperature']), wind:+valueOf(r,['F','f','wind_speed','windSpeed','ff','wind']), gust:+valueOf(r,['FX','fx','FG','gust','wind_gust','max_wind_speed'])})).filter(r=>r.time); }
